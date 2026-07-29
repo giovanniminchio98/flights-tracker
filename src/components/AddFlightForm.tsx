@@ -1,12 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { addManualFlight } from "@/lib/sync";
+import { addFlight } from "@/lib/localFlightStore";
 
 export function AddFlightForm({
-  accessToken,
   onAdded,
   onClose,
 }: {
-  accessToken: string;
   onAdded: () => void;
   onClose: () => void;
 }) {
@@ -25,7 +23,7 @@ export function AddFlightForm({
     setSubmitting(true);
     setError(null);
     try {
-      await addManualFlight(accessToken, {
+      addFlight({
         flightNumber,
         airline: airline || undefined,
         confirmationCode: confirmationCode || undefined,
