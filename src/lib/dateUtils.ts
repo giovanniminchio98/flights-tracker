@@ -30,6 +30,18 @@ export function toDateInputValue(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+export function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 /** Formats an ISO timestamp for a <input type="datetime-local"> value. */
 export function toDateTimeLocalValue(iso: string): string {
   const d = new Date(iso);

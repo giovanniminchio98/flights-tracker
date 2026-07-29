@@ -2,9 +2,12 @@ import { useMemo, useState } from "react";
 import { addFlight, getFlights } from "@/lib/localFlightStore";
 import { isKnownAirlineCode, lookupAirline } from "@/lib/airlines";
 import { getFlightNumberSuggestions, type FlightSuggestion } from "@/lib/flightSuggestions";
-import { projectFlightTimes, toDateInputValue, toDateTimeLocalValue } from "@/lib/dateUtils";
+import { projectFlightTimes, toDateInputValue, toDateTimeLocalValue, formatDateTime } from "@/lib/dateUtils";
+import { getAeroDataBoxKey } from "@/lib/localConfig";
+import { lookupFlight, type FlightLookupResult } from "@/lib/flightLookup";
+import { ApiKeySettings } from "./ApiKeySettings";
 
-type Step = "number" | "date" | "details";
+type Step = "number" | "date" | "lookup" | "details";
 
 interface HistoricalTimes {
   departureTime: string;
@@ -30,11 +33,17 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookupResult, setLookupResult] = useState<FlightLookupResult | null>(null);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+
   const suggestions = useMemo(
     () => getFlightNumberSuggestions(flightNumber, getFlights()),
     [flightNumber]
   );
   const liveAirline = useMemo(() => detectAirline(flightNumber), [flightNumber]);
+  const apiKey = getAeroDataBoxKey();
 
   function applySuggestion(s: FlightSuggestion) {
     setFlightNumber(s.flightNumber);
@@ -53,13 +62,18 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
       return;
     }
     setAirline(liveAirline ?? "");
-    setStep("details");
+    setLookupResult(null);
+    setLookupError(null);
+    setStep("lookup");
   }
 
   function switchToManualDetails() {
     if (historicalTimes) {
       setDepartureTime(toDateTimeLocalValue(historicalTimes.departureTime));
       setArrivalTime(toDateTimeLocalValue(historicalTimes.arrivalTime));
+    } else if (lookupResult) {
+      setDepartureTime(toDateTimeLocalValue(lookupResult.departureTime));
+      setArrivalTime(toDateTimeLocalValue(lookupResult.arrivalTime));
     }
     setStep("details");
   }
@@ -89,6 +103,23 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
   function handleQuickDate(dateStr: string) {
     if (!historicalTimes) return;
     saveFlight(projectFlightTimes(dateStr, historicalTimes.departureTime, historicalTimes.arrivalTime));
+  }
+
+  async function handleLookup(dateStr: string) {
+    if (!apiKey) return;
+    setLookupLoading(true);
+    setLookupError(null);
+    try {
+      const result = await lookupFlight(flightNumber, dateStr, apiKey);
+      setDepartureAirport(result.departureAirport);
+      setArrivalAirport(result.arrivalAirport);
+      if (result.airline) setAirline(result.airline);
+      setLookupResult(result);
+    } catch (err) {
+      setLookupError(err instanceof Error ? err.message : "Lookup failed");
+    } finally {
+      setLookupLoading(false);
+    }
   }
 
   function handleManualSubmit() {
@@ -212,10 +243,123 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
           </>
         )}
 
+        {step === "lookup" && (
+          <>
+            <button onClick={() => setStep("number")} className="mb-2 text-xs text-slate-400 hover:text-slate-600">
+              ← Change flight number
+            </button>
+            <h2 className="mb-1 text-lg font-semibold text-ink">
+              {airline || "Unknown airline"} <span className="font-mono text-base text-slate-500">{flightNumber}</span>
+            </h2>
+
+            {!apiKey ? (
+              <>
+                <p className="mb-4 text-sm text-slate-500">
+                  Add a flight lookup API key to fetch this flight's route and times automatically instead of
+                  entering them by hand.
+                </p>
+                <div className="mt-5 flex items-center justify-between">
+                  <button onClick={switchToManualDetails} className="text-xs text-slate-400 hover:text-slate-600">
+                    Skip, enter manually
+                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:bg-slate-100">
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => setShowApiKeyModal(true)}
+                      className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                    >
+                      Add API key
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : lookupResult ? (
+              <>
+                <p className="mb-1 text-sm text-slate-500">Found it:</p>
+                <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="text-lg font-medium text-ink">
+                    {lookupResult.departureAirport}
+                    <span className="mx-2 text-slate-400">→</span>
+                    {lookupResult.arrivalAirport}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-500">
+                    {formatDateTime(lookupResult.departureTime)} → {formatDateTime(lookupResult.arrivalTime)}
+                  </div>
+                </div>
+                <div className="mt-5 flex items-center justify-between">
+                  <button onClick={switchToManualDetails} className="text-xs text-slate-400 hover:text-slate-600">
+                    Not right? Edit manually
+                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:bg-slate-100">
+                      Cancel
+                    </button>
+                    <button
+                      disabled={submitting}
+                      onClick={() =>
+                        saveFlight({ departureTime: lookupResult.departureTime, arrivalTime: lookupResult.arrivalTime })
+                      }
+                      className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      {submitting ? "Adding…" : "Add flight"}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="mb-4 text-sm text-slate-500">
+                  {lookupLoading ? "Looking up the route…" : "When are you flying? We'll look up the rest."}
+                </p>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    disabled={lookupLoading}
+                    onClick={() => handleLookup(toDateInputValue(today))}
+                    className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Today
+                  </button>
+                  <button
+                    disabled={lookupLoading}
+                    onClick={() => handleLookup(toDateInputValue(tomorrow))}
+                    className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Tomorrow
+                  </button>
+                </div>
+
+                <label className="mt-2 block text-sm">
+                  Or pick a date
+                  <input
+                    type="date"
+                    disabled={lookupLoading}
+                    onChange={(e) => e.target.value && handleLookup(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-50"
+                  />
+                </label>
+
+                {lookupError && <div className="mt-3 text-sm text-red-600">{lookupError}</div>}
+
+                <div className="mt-5 flex items-center justify-between">
+                  <button onClick={switchToManualDetails} className="text-xs text-slate-400 hover:text-slate-600">
+                    Enter manually instead
+                  </button>
+                  <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:bg-slate-100">
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
         {step === "details" && (
           <>
             <button
-              onClick={() => setStep(historicalTimes ? "date" : "number")}
+              onClick={() => setStep(historicalTimes ? "date" : "lookup")}
               className="mb-2 text-xs text-slate-400 hover:text-slate-600"
             >
               ← Back
@@ -294,6 +438,8 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
           </>
         )}
       </div>
+
+      {showApiKeyModal && <ApiKeySettings onClose={() => setShowApiKeyModal(false)} />}
     </div>
   );
 }
