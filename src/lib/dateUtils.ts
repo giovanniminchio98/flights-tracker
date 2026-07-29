@@ -30,6 +30,13 @@ export function toDateInputValue(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+export function formatDuration(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = Math.round(totalMinutes % 60);
+  if (hours === 0) return `${minutes}m`;
+  return `${hours.toLocaleString()}h ${minutes}m`;
+}
+
 export function formatDateTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;

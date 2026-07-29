@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { StatsBar } from "./StatsBar";
+import { WorldMap } from "./WorldMap";
 import { FlightCard } from "./FlightCard";
 import { AddFlightForm } from "./AddFlightForm";
 import { getFlights, deleteFlight } from "@/lib/localFlightStore";
@@ -56,6 +57,10 @@ export function Dashboard() {
       <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
         Standalone mode: flights are stored in this browser only. Google Calendar sync and iCloud import are
         coming back in a follow-up.
+      </div>
+
+      <div className="mb-6">
+        <WorldMap flights={flights} />
       </div>
 
       {stats && (

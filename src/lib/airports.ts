@@ -156,3 +156,64 @@ export function distanceMiles(from: string, to: string): number | null {
 export function isKnownAirport(code: string): boolean {
   return code.toUpperCase() in AIRPORTS;
 }
+
+/** Continent per ISO country code, covering every country present in
+ * AIRPORTS above. Transcontinental cases (Turkey, Russia, ...) are grouped
+ * by travel-industry convention rather than strict geography. */
+const COUNTRY_CONTINENT: Record<string, string> = {
+  US: "North America",
+  CA: "North America",
+  MX: "North America",
+  BR: "South America",
+  AR: "South America",
+  CO: "South America",
+  PE: "South America",
+  CL: "South America",
+  GB: "Europe",
+  IE: "Europe",
+  FR: "Europe",
+  NL: "Europe",
+  DE: "Europe",
+  CH: "Europe",
+  AT: "Europe",
+  BE: "Europe",
+  ES: "Europe",
+  PT: "Europe",
+  IT: "Europe",
+  GR: "Europe",
+  TR: "Europe",
+  FI: "Europe",
+  SE: "Europe",
+  NO: "Europe",
+  DK: "Europe",
+  PL: "Europe",
+  CZ: "Europe",
+  HU: "Europe",
+  IS: "Europe",
+  MU: "Africa",
+  EG: "Africa",
+  ZA: "Africa",
+  KE: "Africa",
+  NG: "Africa",
+  AE: "Asia",
+  QA: "Asia",
+  IL: "Asia",
+  IN: "Asia",
+  SG: "Asia",
+  HK: "Asia",
+  TH: "Asia",
+  MY: "Asia",
+  ID: "Asia",
+  PH: "Asia",
+  VN: "Asia",
+  JP: "Asia",
+  KR: "Asia",
+  CN: "Asia",
+  TW: "Asia",
+  AU: "Oceania",
+  NZ: "Oceania",
+};
+
+export function getContinent(countryCode: string): string | null {
+  return COUNTRY_CONTINENT[countryCode.toUpperCase()] ?? null;
+}
