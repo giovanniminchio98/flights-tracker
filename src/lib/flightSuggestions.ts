@@ -5,6 +5,8 @@ export interface FlightSuggestion {
   airline: string;
   departureAirport: string;
   arrivalAirport: string;
+  departureTime: string;
+  arrivalTime: string;
 }
 
 /** Suggests flight numbers you've logged before that start with what's been
@@ -32,5 +34,7 @@ export function getFlightNumberSuggestions(query: string, flights: FlightRecord[
       airline: f.airline,
       departureAirport: f.departureAirport,
       arrivalAirport: f.arrivalAirport,
+      departureTime: f.departureTime,
+      arrivalTime: f.arrivalTime,
     }));
 }
