@@ -89,3 +89,7 @@ export const AIRLINES: Record<string, string> = {
 export function lookupAirline(code: string): string {
   return AIRLINES[code.toUpperCase()] ?? code.toUpperCase();
 }
+
+export function isKnownAirlineCode(code: string): boolean {
+  return code.toUpperCase() in AIRLINES;
+}
