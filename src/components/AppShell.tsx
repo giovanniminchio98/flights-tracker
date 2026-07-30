@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { WorldMap } from "./WorldMap";
 import { FlightsTab } from "./FlightsTab";
 import { PassportTab } from "./PassportTab";
@@ -12,7 +12,6 @@ import {
   clearSampleFlights,
   hasSampleFlights,
 } from "@/lib/localFlightStore";
-import { computeStats } from "@/lib/stats";
 import { useUnits } from "@/lib/UnitsContext";
 import type { FlightRecord } from "@/types";
 
@@ -44,8 +43,6 @@ export function AppShell() {
   useEffect(() => {
     load();
   }, [load]);
-
-  const stats = useMemo(() => computeStats(flights), [flights]);
 
   function handleDelete(id: string) {
     if (!confirm("Delete this flight?")) return;
@@ -197,7 +194,7 @@ export function AppShell() {
               onLoadSamples={handleLoadSamples}
             />
           ) : (
-            <PassportTab stats={stats} activeFilterLabel={mapFilter?.label ?? null} onSelectFilter={setMapFilter} />
+            <PassportTab flights={flights} activeFilterLabel={mapFilter?.label ?? null} onSelectFilter={setMapFilter} />
           )}
         </div>
       </main>

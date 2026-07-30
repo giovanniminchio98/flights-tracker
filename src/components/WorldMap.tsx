@@ -208,7 +208,9 @@ export function WorldMap({
   }, [focus]);
 
   const sceneTransform = `translate(${view.tx.toFixed(2)} ${view.ty.toFixed(2)}) scale(${view.s.toFixed(4)})`;
-  const invScale = 1 / view.s; // keep dot sizes constant while zoomed
+  const invScale = 1 / view.s; // keep dot/label sizes constant while zoomed
+  // Airport code labels: shown when there aren't too many, or once zoomed in.
+  const showAirportLabels = airports.length <= 14 || view.s >= 1.6;
 
   function routeOpacity(flightId: string, matchesFilter: boolean): number {
     if (hasHighlight) return flightId === highlightedId ? 1 : 0.12;
@@ -241,7 +243,7 @@ export function WorldMap({
                 const opacity = routeOpacity(flight.id, matchesFilter);
                 const isActive = flight.id === highlightedId;
                 const color = isPast ? PAST_COLOR : UPCOMING_COLOR;
-                const ah = 5 * invScale; // arrowhead half-size, constant on screen
+                const ah = 8.5 * invScale; // arrowhead half-size, constant on screen
                 return (
                   <g key={`${flight.id}-${i}`} style={{ opacity }}>
                     <path
@@ -294,6 +296,21 @@ export function WorldMap({
                 stroke="#0b1626"
                 strokeWidth={1.5 * invScale}
               />
+              {showAirportLabels && (
+                <text
+                  x={a.point[0] + 6 * invScale}
+                  y={a.point[1] + 3.5 * invScale}
+                  fontSize={11 * invScale}
+                  fontWeight={600}
+                  fill="#e7ecf6"
+                  stroke="#0b1626"
+                  strokeWidth={3 * invScale}
+                  paintOrder="stroke"
+                  style={{ pointerEvents: "none" }}
+                >
+                  {a.code}
+                </text>
+              )}
               <circle
                 cx={a.point[0]}
                 cy={a.point[1]}
