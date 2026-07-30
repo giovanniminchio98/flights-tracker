@@ -49,6 +49,30 @@ export function formatDateTime(iso: string): string {
   });
 }
 
+/** "11:50 AM" — local time of day only. */
+export function formatTimeShort(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+/** "Fri, 31 Jul" — weekday + day + month, no time. */
+export function formatDateShort(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+}
+
+/** True when arrival falls on a later calendar day than departure (shows +1). */
+export function isNextDay(departureIso: string, arrivalIso: string): boolean {
+  const a = new Date(departureIso);
+  const b = new Date(arrivalIso);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false;
+  return (
+    a.getFullYear() !== b.getFullYear() || a.getMonth() !== b.getMonth() || a.getDate() !== b.getDate()
+  );
+}
+
 /** Formats an ISO timestamp for a <input type="datetime-local"> value. */
 export function toDateTimeLocalValue(iso: string): string {
   const d = new Date(iso);
