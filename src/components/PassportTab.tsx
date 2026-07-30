@@ -8,16 +8,16 @@ import { getAirport } from "@/lib/airports";
 
 function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm">
+    <div className="rounded-xl border border-line bg-surface p-4 text-center shadow-sm">
       <div className="text-2xl font-semibold text-ink">{value}</div>
-      <div className="text-xs text-slate-500">{label}</div>
-      {sub && <div className="text-[11px] text-slate-400">{sub}</div>}
+      <div className="text-xs text-muted">{label}</div>
+      {sub && <div className="text-[11px] text-muted">{sub}</div>}
     </div>
   );
 }
 
 function SectionLabel({ children }: { children: string }) {
-  return <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">{children}</div>;
+  return <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">{children}</div>;
 }
 
 function ClickableRecord({
@@ -37,13 +37,13 @@ function ClickableRecord({
     <button
       onClick={onClick}
       disabled={!onClick}
-      className={`rounded-xl border bg-white p-4 text-left shadow-sm transition ${
-        active ? "border-ink ring-1 ring-ink" : "border-slate-200"
+      className={`rounded-xl border bg-surface p-4 text-left shadow-sm transition ${
+        active ? "border-ink ring-1 ring-ink" : "border-line"
       } ${onClick ? "hover:border-slate-400" : "cursor-default"}`}
     >
-      <div className="text-xs text-slate-500">{title}</div>
+      <div className="text-xs text-muted">{title}</div>
       <div className="mt-1 text-lg font-semibold text-ink">{value}</div>
-      {sub && <div className="text-xs text-slate-400">{sub}</div>}
+      {sub && <div className="text-xs text-muted">{sub}</div>}
     </button>
   );
 }
@@ -69,10 +69,10 @@ function BarList({
             onClick={() => clickable && onBarClick!(d)}
             className={`flex w-full items-center gap-2 text-xs ${clickable ? "hover:opacity-80" : "cursor-default"}`}
           >
-            <span className={`w-10 shrink-0 text-left font-mono ${activeLabel === d.label ? "text-ink" : "text-slate-500"}`}>
+            <span className={`w-10 shrink-0 text-left font-mono ${activeLabel === d.label ? "text-ink" : "text-muted"}`}>
               {d.label}
             </span>
-            <div className="h-3.5 flex-1 rounded-full bg-slate-100">
+            <div className="h-3.5 flex-1 rounded-full bg-white/10">
               <div
                 className="h-3.5 rounded-full"
                 style={{
@@ -134,7 +134,7 @@ export function PassportTab({
   const u = unitLabel(units);
 
   if (stats.totalFlights === 0) {
-    return <div className="py-16 text-center text-sm text-slate-400">Add flights to build your passport.</div>;
+    return <div className="py-16 text-center text-sm text-muted">Add flights to build your passport.</div>;
   }
 
   function toggle(filter: MapFilter) {
@@ -248,7 +248,7 @@ export function PassportTab({
                 key={a.code}
                 onClick={() => toggle(airportFilter(a.code))}
                 className={`rounded-full px-3 py-1 text-sm transition ${
-                  activeFilterLabel === `Flights via ${a.code}` ? "bg-ink text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  activeFilterLabel === `Flights via ${a.code}` ? "bg-accent text-white" : "bg-white/10 text-slate-200 hover:bg-white/20"
                 }`}
               >
                 {a.code} <span className="opacity-60">×{a.count}</span>
@@ -268,8 +268,8 @@ export function PassportTab({
                 onClick={() => toggle(countryFilter(c.label))}
                 className={`rounded-full px-3 py-1 text-sm transition ${
                   activeFilterLabel === `Flights in ${countryFlag(c.label)} ${c.label}`
-                    ? "bg-ink text-white"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    ? "bg-accent text-white"
+                    : "bg-white/10 text-slate-200 hover:bg-white/20"
                 }`}
               >
                 {countryFlag(c.label)} {c.label} <span className="opacity-60">×{c.count}</span>
@@ -280,8 +280,8 @@ export function PassportTab({
       )}
 
       {stats.flightsByYear.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 text-xs font-medium text-slate-500">Flights by year — tap a bar to filter the map</div>
+        <div className="rounded-xl border border-line bg-surface p-4 shadow-sm">
+          <div className="mb-3 text-xs font-medium text-muted">Flights by year — tap a bar to filter the map</div>
           <BarList
             data={stats.flightsByYear}
             activeLabel={
@@ -293,12 +293,12 @@ export function PassportTab({
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 text-xs font-medium text-slate-500">Flights by month</div>
+        <div className="rounded-xl border border-line bg-surface p-4 shadow-sm">
+          <div className="mb-3 text-xs font-medium text-muted">Flights by month</div>
           <BarList data={stats.flightsByMonth} />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="mb-3 text-xs font-medium text-slate-500">Flights by day of week</div>
+        <div className="rounded-xl border border-line bg-surface p-4 shadow-sm">
+          <div className="mb-3 text-xs font-medium text-muted">Flights by day of week</div>
           <BarList data={stats.flightsByWeekday} />
         </div>
       </div>

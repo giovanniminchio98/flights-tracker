@@ -4,10 +4,10 @@ import { getAirport } from "@/lib/airports";
 import { formatDateTime } from "@/lib/dateUtils";
 
 const SOURCE_BADGES: Record<string, { label: string; className: string }> = {
-  google: { label: "Google", className: "bg-blue-50 text-blue-700 border-blue-200" },
-  icloud: { label: "iCloud", className: "bg-slate-100 text-slate-600 border-slate-300" },
-  manual: { label: "Manual", className: "bg-amber-50 text-amber-700 border-amber-200" },
-  sample: { label: "Sample", className: "bg-violet-50 text-violet-700 border-violet-200" },
+  google: { label: "Google", className: "bg-blue-500/15 text-blue-300 border-blue-400/30" },
+  icloud: { label: "iCloud", className: "bg-white/10 text-slate-300 border-line" },
+  manual: { label: "Manual", className: "bg-amber-500/15 text-amber-300 border-amber-400/30" },
+  sample: { label: "Sample", className: "bg-violet-500/15 text-violet-300 border-violet-400/30" },
 };
 
 function FlightRow({
@@ -26,28 +26,28 @@ function FlightRow({
   const sources = flight.sources.split(",").map((s) => s.trim()).filter(Boolean);
 
   return (
-    <div className={`rounded-xl border bg-white shadow-sm transition ${expanded ? "border-ink" : "border-slate-200"}`}>
+    <div className={`rounded-xl border bg-surface shadow-sm transition ${expanded ? "border-ink" : "border-line"}`}>
       <button onClick={onSelect} className="flex w-full items-start justify-between gap-3 p-4 text-left">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-ink">{flight.airline || "Flight"}</span>
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-slate-600">{flight.flightNumber}</span>
+            <span className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-mono text-slate-300">{flight.flightNumber}</span>
           </div>
           <div className="mt-1 text-lg font-medium text-ink">
             {flight.departureAirport}
-            <span className="mx-2 text-slate-400">→</span>
+            <span className="mx-2 text-muted">→</span>
             {flight.arrivalAirport}
           </div>
           {(depCity || arrCity) && (
-            <div className="truncate text-xs text-slate-400">
+            <div className="truncate text-xs text-muted">
               {depCity ?? flight.departureAirport} → {arrCity ?? flight.arrivalAirport}
             </div>
           )}
-          <div className="mt-1 text-sm text-slate-500">{formatDateTime(flight.departureTime)}</div>
+          <div className="mt-1 text-sm text-muted">{formatDateTime(flight.departureTime)}</div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           {sources.map((s) => {
-            const b = SOURCE_BADGES[s] ?? { label: s, className: "bg-slate-100 text-slate-600 border-slate-300" };
+            const b = SOURCE_BADGES[s] ?? { label: s, className: "bg-white/10 text-slate-300 border-line" };
             return (
               <span key={s} className={`rounded-full border px-2 py-0.5 text-xs ${b.className}`}>
                 {b.label}
@@ -60,7 +60,7 @@ function FlightRow({
       {expanded && (
         <div className="px-4 pb-4">
           <FlightDetail flight={flight} />
-          <button onClick={onDelete} className="mt-3 text-xs text-slate-400 hover:text-red-600">
+          <button onClick={onDelete} className="mt-3 text-xs text-muted hover:text-red-400">
             Delete flight
           </button>
         </div>
@@ -72,7 +72,7 @@ function FlightRow({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">{title}</div>
+      <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">{title}</div>
       <div className="space-y-3">{children}</div>
     </div>
   );
@@ -115,15 +115,15 @@ export function FlightsTab({
     return (
       <div className="py-16 text-center">
         <div className="text-3xl">🛫</div>
-        <div className="mt-3 text-sm text-slate-500">No flights yet.</div>
+        <div className="mt-3 text-sm text-muted">No flights yet.</div>
         <div className="mt-4 flex flex-col items-center gap-2">
           <button
             onClick={onAdd}
-            className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-soft"
           >
             Add your first flight
           </button>
-          <button onClick={onLoadSamples} className="text-xs text-slate-500 underline hover:text-ink">
+          <button onClick={onLoadSamples} className="text-xs text-muted underline hover:text-ink">
             or load 2 sample flights to explore
           </button>
         </div>
@@ -147,7 +147,7 @@ export function FlightsTab({
       {upcoming.length > 0 && <Section title={`Upcoming (${upcoming.length})`}>{upcoming.map(renderRow)}</Section>}
       {past.length > 0 && <Section title="Recent flights">{past.map(renderRow)}</Section>}
       {today.length === 0 && upcoming.length === 0 && (
-        <div className="pt-2 text-center text-xs text-slate-400">No upcoming flights — add one with the + button.</div>
+        <div className="pt-2 text-center text-xs text-muted">No upcoming flights — add one with the + button.</div>
       )}
     </div>
   );

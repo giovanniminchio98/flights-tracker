@@ -135,11 +135,11 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
 
   return (
     <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-lg">
+      <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-lg">
         {step === "number" && (
           <>
             <h2 className="mb-1 text-lg font-semibold text-ink">Add flight</h2>
-            <p className="mb-4 text-sm text-slate-500">What's the flight number?</p>
+            <p className="mb-4 text-sm text-muted">What's the flight number?</p>
 
             <input
               autoFocus
@@ -147,26 +147,26 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
               onChange={(e) => setFlightNumber(e.target.value.toUpperCase())}
               onKeyDown={(e) => e.key === "Enter" && proceedFromNumberStep()}
               placeholder="AY1234"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-lg font-medium tracking-wide"
+              className="w-full rounded-lg border border-line px-3 py-2.5 text-lg font-medium tracking-wide"
             />
 
             {liveAirline && suggestions.length === 0 && (
-              <div className="mt-2 text-sm text-slate-500">{liveAirline}</div>
+              <div className="mt-2 text-sm text-muted">{liveAirline}</div>
             )}
 
             {suggestions.length > 0 && (
-              <div className="mt-2 overflow-hidden rounded-lg border border-slate-200">
+              <div className="mt-2 overflow-hidden rounded-lg border border-line">
                 {suggestions.map((s) => (
                   <button
                     key={s.flightNumber}
                     onClick={() => applySuggestion(s)}
-                    className="flex w-full items-center justify-between border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-slate-50"
+                    className="flex w-full items-center justify-between border-b border-line px-3 py-2 text-left text-sm last:border-b-0 hover:bg-white/5"
                   >
                     <span className="font-medium text-ink">{s.flightNumber}</span>
-                    <span className="text-slate-500">
+                    <span className="text-muted">
                       {s.airline}
                       {s.departureAirport && s.arrivalAirport && (
-                        <span className="ml-2 text-slate-400">
+                        <span className="ml-2 text-muted">
                           {s.departureAirport} → {s.arrivalAirport}
                         </span>
                       )}
@@ -177,13 +177,13 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
             )}
 
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:bg-slate-100">
+              <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-muted hover:bg-white/10">
                 Cancel
               </button>
               <button
                 onClick={proceedFromNumberStep}
                 disabled={!flightNumber.trim()}
-                className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-soft disabled:opacity-50"
               >
                 Continue
               </button>
@@ -193,13 +193,13 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
 
         {step === "date" && (
           <>
-            <button onClick={() => setStep("number")} className="mb-2 text-xs text-slate-400 hover:text-slate-600">
+            <button onClick={() => setStep("number")} className="mb-2 text-xs text-muted hover:text-slate-300">
               ← Change flight number
             </button>
             <h2 className="mb-1 text-lg font-semibold text-ink">
-              {airline || "Unknown airline"} <span className="font-mono text-base text-slate-500">{flightNumber}</span>
+              {airline || "Unknown airline"} <span className="font-mono text-base text-muted">{flightNumber}</span>
             </h2>
-            <p className="mb-4 text-sm text-slate-500">
+            <p className="mb-4 text-sm text-muted">
               {departureAirport} → {arrivalAirport} · same times as last time. When are you flying?
             </p>
 
@@ -207,14 +207,14 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
               <button
                 disabled={submitting}
                 onClick={() => handleQuickDate(toDateInputValue(today))}
-                className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium hover:bg-white/5 disabled:opacity-50"
               >
                 Today
               </button>
               <button
                 disabled={submitting}
                 onClick={() => handleQuickDate(toDateInputValue(tomorrow))}
-                className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium hover:bg-white/5 disabled:opacity-50"
               >
                 Tomorrow
               </button>
@@ -226,17 +226,17 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
                 type="date"
                 disabled={submitting}
                 onChange={(e) => e.target.value && handleQuickDate(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-50"
+                className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm disabled:opacity-50"
               />
             </label>
 
-            {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
+            {error && <div className="mt-3 text-sm text-red-400">{error}</div>}
 
             <div className="mt-5 flex items-center justify-between">
-              <button onClick={switchToManualDetails} className="text-xs text-slate-400 hover:text-slate-600">
+              <button onClick={switchToManualDetails} className="text-xs text-muted hover:text-slate-300">
                 Not right, or need exact times? Enter manually
               </button>
-              <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:bg-slate-100">
+              <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-muted hover:bg-white/10">
                 Cancel
               </button>
             </div>
@@ -245,30 +245,30 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
 
         {step === "lookup" && (
           <>
-            <button onClick={() => setStep("number")} className="mb-2 text-xs text-slate-400 hover:text-slate-600">
+            <button onClick={() => setStep("number")} className="mb-2 text-xs text-muted hover:text-slate-300">
               ← Change flight number
             </button>
             <h2 className="mb-1 text-lg font-semibold text-ink">
-              {airline || "Unknown airline"} <span className="font-mono text-base text-slate-500">{flightNumber}</span>
+              {airline || "Unknown airline"} <span className="font-mono text-base text-muted">{flightNumber}</span>
             </h2>
 
             {!apiKey ? (
               <>
-                <p className="mb-4 text-sm text-slate-500">
+                <p className="mb-4 text-sm text-muted">
                   Add a flight lookup API key to fetch this flight's route and times automatically instead of
                   entering them by hand.
                 </p>
                 <div className="mt-5 flex items-center justify-between">
-                  <button onClick={switchToManualDetails} className="text-xs text-slate-400 hover:text-slate-600">
+                  <button onClick={switchToManualDetails} className="text-xs text-muted hover:text-slate-300">
                     Skip, enter manually
                   </button>
                   <div className="flex gap-2">
-                    <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:bg-slate-100">
+                    <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-muted hover:bg-white/10">
                       Cancel
                     </button>
                     <button
                       onClick={() => setShowApiKeyModal(true)}
-                      className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                      className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-soft"
                     >
                       Add API key
                     </button>
@@ -277,23 +277,23 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
               </>
             ) : lookupResult ? (
               <>
-                <p className="mb-1 text-sm text-slate-500">Found it:</p>
-                <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="mb-1 text-sm text-muted">Found it:</p>
+                <div className="mb-4 rounded-lg border border-line bg-white/5 p-3">
                   <div className="text-lg font-medium text-ink">
                     {lookupResult.departureAirport}
-                    <span className="mx-2 text-slate-400">→</span>
+                    <span className="mx-2 text-muted">→</span>
                     {lookupResult.arrivalAirport}
                   </div>
-                  <div className="mt-1 text-sm text-slate-500">
+                  <div className="mt-1 text-sm text-muted">
                     {formatDateTime(lookupResult.departureTime)} → {formatDateTime(lookupResult.arrivalTime)}
                   </div>
                 </div>
                 <div className="mt-5 flex items-center justify-between">
-                  <button onClick={switchToManualDetails} className="text-xs text-slate-400 hover:text-slate-600">
+                  <button onClick={switchToManualDetails} className="text-xs text-muted hover:text-slate-300">
                     Not right? Edit manually
                   </button>
                   <div className="flex gap-2">
-                    <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:bg-slate-100">
+                    <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-muted hover:bg-white/10">
                       Cancel
                     </button>
                     <button
@@ -301,7 +301,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
                       onClick={() =>
                         saveFlight({ departureTime: lookupResult.departureTime, arrivalTime: lookupResult.arrivalTime })
                       }
-                      className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                      className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-soft disabled:opacity-50"
                     >
                       {submitting ? "Adding…" : "Add flight"}
                     </button>
@@ -310,7 +310,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
               </>
             ) : (
               <>
-                <p className="mb-4 text-sm text-slate-500">
+                <p className="mb-4 text-sm text-muted">
                   {lookupLoading ? "Looking up the route…" : "When are you flying? We'll look up the rest."}
                 </p>
 
@@ -318,14 +318,14 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
                   <button
                     disabled={lookupLoading}
                     onClick={() => handleLookup(toDateInputValue(today))}
-                    className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                    className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium hover:bg-white/5 disabled:opacity-50"
                   >
                     Today
                   </button>
                   <button
                     disabled={lookupLoading}
                     onClick={() => handleLookup(toDateInputValue(tomorrow))}
-                    className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                    className="rounded-lg border border-line px-4 py-2.5 text-sm font-medium hover:bg-white/5 disabled:opacity-50"
                   >
                     Tomorrow
                   </button>
@@ -337,17 +337,17 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
                     type="date"
                     disabled={lookupLoading}
                     onChange={(e) => e.target.value && handleLookup(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-50"
+                    className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm disabled:opacity-50"
                   />
                 </label>
 
-                {lookupError && <div className="mt-3 text-sm text-red-600">{lookupError}</div>}
+                {lookupError && <div className="mt-3 text-sm text-red-400">{lookupError}</div>}
 
                 <div className="mt-5 flex items-center justify-between">
-                  <button onClick={switchToManualDetails} className="text-xs text-slate-400 hover:text-slate-600">
+                  <button onClick={switchToManualDetails} className="text-xs text-muted hover:text-slate-300">
                     Enter manually instead
                   </button>
-                  <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:bg-slate-100">
+                  <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-muted hover:bg-white/10">
                     Cancel
                   </button>
                 </div>
@@ -360,12 +360,12 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
           <>
             <button
               onClick={() => setStep(historicalTimes ? "date" : "lookup")}
-              className="mb-2 text-xs text-slate-400 hover:text-slate-600"
+              className="mb-2 text-xs text-muted hover:text-slate-300"
             >
               ← Back
             </button>
             <h2 className="mb-4 text-lg font-semibold text-ink">
-              {airline || "Unknown airline"} <span className="font-mono text-base text-slate-500">{flightNumber}</span>
+              {airline || "Unknown airline"} <span className="font-mono text-base text-muted">{flightNumber}</span>
             </h2>
 
             <div className="grid grid-cols-2 gap-3">
@@ -377,7 +377,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
                   onChange={(e) => setDepartureAirport(e.target.value.toUpperCase())}
                   placeholder="JFK"
                   maxLength={3}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm uppercase"
+                  className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm uppercase"
                 />
               </label>
               <label className="col-span-1 text-sm">
@@ -388,7 +388,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
                   onChange={(e) => setArrivalAirport(e.target.value.toUpperCase())}
                   placeholder="HEL"
                   maxLength={3}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm uppercase"
+                  className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm uppercase"
                 />
               </label>
               <label className="col-span-2 text-sm">
@@ -398,7 +398,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
                   type="datetime-local"
                   value={departureTime}
                   onChange={(e) => setDepartureTime(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm"
                 />
               </label>
               <label className="col-span-2 text-sm">
@@ -408,7 +408,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
                   type="datetime-local"
                   value={arrivalTime}
                   onChange={(e) => setArrivalTime(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm"
                 />
               </label>
               <label className="col-span-2 text-sm">
@@ -416,21 +416,21 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
                 <input
                   value={confirmationCode}
                   onChange={(e) => setConfirmationCode(e.target.value.toUpperCase())}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm"
                 />
               </label>
             </div>
 
-            {error && <div className="mt-3 text-sm text-red-600">{error}</div>}
+            {error && <div className="mt-3 text-sm text-red-400">{error}</div>}
 
             <div className="mt-5 flex justify-end gap-2">
-              <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-slate-500 hover:bg-slate-100">
+              <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-muted hover:bg-white/10">
                 Cancel
               </button>
               <button
                 onClick={handleManualSubmit}
                 disabled={submitting || !departureAirport || !arrivalAirport || !departureTime || !arrivalTime}
-                className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-soft disabled:opacity-50"
               >
                 {submitting ? "Adding…" : "Add flight"}
               </button>

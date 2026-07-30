@@ -78,15 +78,15 @@ export function AppShell() {
   return (
     <div className="flex h-screen flex-col bg-paper">
       {/* Header */}
-      <header className="z-20 flex shrink-0 items-center justify-between bg-navy px-4 py-2.5 text-white">
-        <span className="flex items-center gap-2 font-semibold">
-          <span>✈️</span>
-          <span className="hidden sm:inline">Flight Tracker</span>
+      <header className="z-20 flex shrink-0 items-center justify-between border-b border-line bg-surface px-4 py-2.5 text-ink">
+        <span className="flex items-center gap-2 text-lg font-bold tracking-tight">
+          <span className="text-accent-soft">✈</span>
+          <span>Skylog</span>
         </span>
         <div className="flex items-center gap-2">
           <button
             onClick={toggleUnits}
-            className="rounded-lg border border-white/20 px-2.5 py-1 text-xs font-medium text-slate-200 hover:bg-white/10"
+            className="rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-muted hover:bg-white/10"
             title="Toggle distance units"
           >
             {units === "km" ? "km" : "mi"}
@@ -94,15 +94,15 @@ export function AppShell() {
           <div className="relative">
             <button
               onClick={() => setShowAccountMenu((v) => !v)}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-sm text-white hover:bg-white/25"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-sm text-ink hover:bg-white/20"
               title="Account"
             >
               👤
             </button>
             {showAccountMenu && (
-              <div className="absolute right-0 top-10 z-30 w-56 rounded-xl border border-slate-200 bg-white p-2 text-sm text-slate-700 shadow-lg">
-                <div className="px-2 py-1.5 text-xs text-slate-400">Not signed in</div>
-                <div className="px-2 py-1.5 text-xs text-slate-500">
+              <div className="absolute right-0 top-10 z-30 w-56 rounded-xl border border-line bg-surface p-2 text-sm text-slate-200 shadow-lg">
+                <div className="px-2 py-1.5 text-xs text-muted">Not signed in</div>
+                <div className="px-2 py-1.5 text-xs text-muted">
                   iCloud &amp; Google sign-in are coming soon. For now, flights are stored in this browser.
                 </div>
                 <button
@@ -110,14 +110,14 @@ export function AppShell() {
                     setShowApiSettings(true);
                     setShowAccountMenu(false);
                   }}
-                  className="mt-1 w-full rounded-lg px-2 py-1.5 text-left hover:bg-slate-50"
+                  className="mt-1 w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
                 >
                   Flight lookup API…
                 </button>
                 {samplesPresent ? (
                   <button
                     onClick={handleClearSamples}
-                    className="w-full rounded-lg px-2 py-1.5 text-left text-red-600 hover:bg-slate-50"
+                    className="w-full rounded-lg px-2 py-1.5 text-left text-red-400 hover:bg-white/5"
                   >
                     Clear sample flights
                   </button>
@@ -127,7 +127,7 @@ export function AppShell() {
                       handleLoadSamples();
                       setShowAccountMenu(false);
                     }}
-                    className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-slate-50"
+                    className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
                   >
                     Load sample flights
                   </button>
@@ -139,7 +139,7 @@ export function AppShell() {
       </header>
 
       {/* Pinned map — always visible on every tab */}
-      <div className="relative z-10 shrink-0 border-b border-slate-200">
+      <div className="relative z-10 shrink-0 border-b border-line">
         <WorldMap
           flights={flights}
           highlightedId={highlightedId}
@@ -151,7 +151,7 @@ export function AppShell() {
           }}
         />
         {tab === "passport" && mapFilter && (
-          <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-ink/90 px-3 py-1 text-xs text-white">
+          <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-accent/90 px-3 py-1 text-xs text-white">
             <span>{mapFilter.label}</span>
             <button onClick={() => setMapFilter(null)} className="text-slate-300 hover:text-white">
               ✕
@@ -161,13 +161,13 @@ export function AppShell() {
       </div>
 
       {/* Tab bar */}
-      <nav className="z-10 flex shrink-0 border-b border-slate-200 bg-white">
+      <nav className="z-10 flex shrink-0 border-b border-line bg-surface">
         {(["flights", "passport"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => switchTab(t)}
             className={`flex-1 py-2.5 text-sm font-medium capitalize transition ${
-              tab === t ? "border-b-2 border-ink text-ink" : "text-slate-400 hover:text-slate-600"
+              tab === t ? "border-b-2 border-ink text-ink" : "text-muted hover:text-slate-300"
             }`}
           >
             {t === "flights" ? "Flights" : "Passport"}
@@ -196,7 +196,7 @@ export function AppShell() {
       {/* Floating add button */}
       <button
         onClick={() => setShowAddForm(true)}
-        className="fixed bottom-5 right-5 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-ink text-2xl text-white shadow-lg hover:bg-slate-800"
+        className="fixed bottom-5 right-5 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-white shadow-lg hover:bg-accent-soft"
         title="Add flight"
       >
         +

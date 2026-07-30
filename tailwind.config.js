@@ -4,13 +4,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Navy + slate-gray theme.
-        ink: "#0b1524", // deep navy — primary text & solid buttons
-        paper: "#eef1f6", // cool light slate — page background
-        navy: {
-          DEFAULT: "#16233b", // header / chrome
-          soft: "#22304d", // hover on navy surfaces
-        },
+        // Dark navy theme (default). Semantic tokens so components read by role.
+        paper: "#0a1120", // page background (deep navy-black)
+        surface: "#111a2e", // cards, header
+        surface2: "#1a2440", // hover / secondary surface
+        line: "#243149", // hairline borders
+        ink: "#e7ecf6", // primary text (light)
+        muted: "#93a1bd", // secondary text
+        accent: "#3b82f6", // primary action (blue)
+        "accent-soft": "#60a5fa",
+      },
+      fontFamily: {
+        sans: [
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Monaco",
+          "Cascadia Code",
+          "Roboto Mono",
+          "Consolas",
+          "monospace",
+        ],
       },
     },
   },
