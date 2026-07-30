@@ -33,7 +33,15 @@ function shortestLonDelta(lon1: number, lon2: number): number {
   return d;
 }
 
-function arcPath([x1, y1]: [number, number], [x2, y2]: [number, number]): string {
+interface Segment {
+  d: string;
+  /** midpoint of the curve + travel angle (deg), for the direction arrow */
+  mx: number;
+  my: number;
+  angle: number;
+}
+
+function arcPath([x1, y1]: [number, number], [x2, y2]: [number, number]): Segment {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const dist = Math.hypot(dx, dy) || 1;
@@ -46,13 +54,22 @@ function arcPath([x1, y1]: [number, number], [x2, y2]: [number, number]): string
   }
   const cx = (x1 + x2) / 2 + nx * offset;
   const cy = (y1 + y2) / 2 + ny * offset;
-  return `M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+  // Quadratic midpoint (t=0.5); its tangent direction equals the chord p0→p1.
+  const mx = 0.25 * x1 + 0.5 * cx + 0.25 * x2;
+  const my = 0.25 * y1 + 0.5 * cy + 0.25 * y2;
+  const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+  return {
+    d: `M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`,
+    mx,
+    my,
+    angle,
+  };
 }
 
 /** Splits a route at the antimeridian when the shorter direction crosses it,
  * so trans-Pacific routes wrap off one edge and back in the other instead of
  * drawing a straight line across the whole map. */
-function buildRoutePaths(from: [number, number], to: [number, number]): string[] {
+function buildRoutePaths(from: [number, number], to: [number, number]): Segment[] {
   const [lon1, lat1] = from;
   const [lon2, lat2] = to;
   const delta = shortestLonDelta(lon1, lon2);
@@ -220,21 +237,29 @@ export function WorldMap({
               return aTop - bTop;
             })
             .map(({ flight, paths, isPast, matchesFilter }) =>
-              paths.map((d, i) => {
+              paths.map((seg, i) => {
                 const opacity = routeOpacity(flight.id, matchesFilter);
                 const isActive = flight.id === highlightedId;
+                const color = isPast ? PAST_COLOR : UPCOMING_COLOR;
+                const ah = 5 * invScale; // arrowhead half-size, constant on screen
                 return (
                   <g key={`${flight.id}-${i}`} style={{ opacity }}>
                     <path
-                      d={d}
+                      d={seg.d}
                       fill="none"
-                      stroke={isPast ? PAST_COLOR : UPCOMING_COLOR}
+                      stroke={color}
                       strokeWidth={isActive ? 3 : 2}
                       strokeLinecap="round"
                       vectorEffect="non-scaling-stroke"
                     />
+                    {/* direction arrow at the segment midpoint (departure → arrival) */}
                     <path
-                      d={d}
+                      d={`M ${-ah},${-ah} L ${ah},0 L ${-ah},${ah} Z`}
+                      fill={color}
+                      transform={`translate(${seg.mx} ${seg.my}) rotate(${seg.angle})`}
+                    />
+                    <path
+                      d={seg.d}
                       fill="none"
                       stroke="transparent"
                       strokeWidth={12}

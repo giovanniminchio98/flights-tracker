@@ -20,7 +20,8 @@ type FilterMode = "all" | "upcoming" | "past";
 interface Arc {
   line: Feature<LineString>;
   color: string;
-  mid: [number, number]; // lon/lat midpoint for the label
+  mid: [number, number]; // lon/lat midpoint for the label + direction arrow
+  ahead: [number, number]; // a lon/lat point just past the midpoint (travel direction)
   routeLabel: string; // "HEL → JFK"
   dateLabel: string; // "Fri, 31 Jul"
 }
@@ -69,11 +70,14 @@ export function GlobeView({
         const a = getAirport(f.departureAirport)!;
         const b = getAirport(f.arrivalAirport)!;
         const past = new Date(f.arrivalTime).getTime() < now;
-        const mid = geoInterpolate([a.lon, a.lat], [b.lon, b.lat])(0.5) as [number, number];
+        const interp = geoInterpolate([a.lon, a.lat], [b.lon, b.lat]);
+        const mid = interp(0.5) as [number, number];
+        const ahead = interp(0.56) as [number, number];
         return {
           line: greatCircle([a.lon, a.lat], [b.lon, b.lat]),
           color: past ? PAST : UPCOMING,
           mid,
+          ahead,
           routeLabel: `${f.departureAirport.toUpperCase()} → ${f.arrivalAirport.toUpperCase()}`,
           dateLabel: formatDateShort(f.departureTime),
         };
@@ -168,8 +172,29 @@ export function GlobeView({
         ctx.stroke();
       }
 
-      // Airport points (only front hemisphere — geoPath point radius via projection)
       const r = rotationRef.current;
+
+      // Direction arrows at each arc midpoint (front hemisphere only)
+      for (const arc of arcs) {
+        if (!isFront(arc.mid[0], arc.mid[1], -r[0], -r[1])) continue;
+        const m = projection(arc.mid);
+        const a = projection(arc.ahead);
+        if (!m || !a) continue;
+        const angle = Math.atan2(a[1] - m[1], a[0] - m[0]);
+        ctx.save();
+        ctx.translate(m[0], m[1]);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(-4, -4);
+        ctx.lineTo(5, 0);
+        ctx.lineTo(-4, 4);
+        ctx.closePath();
+        ctx.fillStyle = arc.color;
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Airport points (only front hemisphere — geoPath point radius via projection)
       for (const p of points) {
         const xy = projection(p);
         if (!xy) continue;
