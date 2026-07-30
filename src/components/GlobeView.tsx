@@ -93,7 +93,7 @@ export function GlobeView({
         if (info) set.set(code.toUpperCase(), [info.lon, info.lat]);
       }
     }
-    return Array.from(set.values());
+    return Array.from(set.entries()).map(([code, p]) => ({ code, p }));
   }, [filtered]);
 
   // Rotation + scale live in refs so the animation loop reads the latest
@@ -104,6 +104,9 @@ export function GlobeView({
   const lastRef = useRef<{ x: number; y: number } | null>(null);
   const velocityRef = useRef<[number, number]>([0.06, 0]); // idle auto-spin (deg/frame)
   const projectionRef = useRef<GeoProjection | null>(null);
+  // Active touch/pointer tracking so two-finger pinch can zoom on mobile.
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchDistRef = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -194,16 +197,28 @@ export function GlobeView({
         ctx.restore();
       }
 
-      // Airport points (only front hemisphere — geoPath point radius via projection)
-      for (const p of points) {
-        const xy = projection(p);
-        if (!xy) continue;
+      // Airport dots + code labels (front hemisphere only). Codes shown when
+      // there aren't too many, or once zoomed in, to avoid clutter.
+      const showCodes = scaleRef.current >= 1.3 || points.length <= 12;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.font = "600 10px ui-monospace, Menlo, monospace";
+      for (const { code, p } of points) {
         const [lon, lat] = p;
         if (!isFront(lon, lat, -r[0], -r[1])) continue;
+        const xy = projection(p);
+        if (!xy) continue;
         ctx.beginPath();
         ctx.arc(xy[0], xy[1], 2.5, 0, 2 * Math.PI);
         ctx.fillStyle = "#dbe4f2";
         ctx.fill();
+        if (showCodes) {
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = "rgba(10,17,32,0.85)";
+          ctx.strokeText(code, xy[0] + 5, xy[1]);
+          ctx.fillStyle = "#cbd5e1";
+          ctx.fillText(code, xy[0] + 5, xy[1]);
+        }
       }
 
       // Per-flight labels near each arc's midpoint (front hemisphere only).
@@ -281,13 +296,39 @@ export function GlobeView({
     // arcs/points/land/graticule captured by closure; re-run when arcs change
   }, [arcs, points, land, graticule]);
 
-  // Pointer drag to spin
+  // One finger = spin; two fingers = pinch-zoom (works on mobile); wheel =
+  // zoom on desktop.
   function onPointerDown(e: React.PointerEvent) {
-    draggingRef.current = true;
-    lastRef.current = { x: e.clientX, y: e.clientY };
-    (e.target as Element).setPointerCapture(e.pointerId);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 1) {
+      draggingRef.current = true;
+      lastRef.current = { x: e.clientX, y: e.clientY };
+    } else {
+      // second finger down — stop spinning, start pinch
+      draggingRef.current = false;
+      pinchDistRef.current = null;
+    }
+    try {
+      (e.target as Element).setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
   }
   function onPointerMove(e: React.PointerEvent) {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const pts = Array.from(pointersRef.current.values());
+
+    if (pts.length >= 2) {
+      const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      if (pinchDistRef.current != null && pinchDistRef.current > 0) {
+        const factor = d / pinchDistRef.current;
+        scaleRef.current = Math.max(0.6, Math.min(6, scaleRef.current * factor));
+      }
+      pinchDistRef.current = d;
+      return;
+    }
+
     if (!draggingRef.current || !lastRef.current) return;
     const dx = e.clientX - lastRef.current.x;
     const dy = e.clientY - lastRef.current.y;
@@ -298,8 +339,16 @@ export function GlobeView({
     velocityRef.current = [dx * k * 0.6, -dy * k * 0.6];
   }
   function onPointerUp(e: React.PointerEvent) {
-    draggingRef.current = false;
-    lastRef.current = null;
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchDistRef.current = null;
+    if (pointersRef.current.size === 1) {
+      const [p] = Array.from(pointersRef.current.values());
+      lastRef.current = { x: p.x, y: p.y };
+      draggingRef.current = true;
+    } else if (pointersRef.current.size === 0) {
+      draggingRef.current = false;
+      lastRef.current = null;
+    }
     try {
       (e.target as Element).releasePointerCapture(e.pointerId);
     } catch {
@@ -336,7 +385,7 @@ export function GlobeView({
           </button>
         ))}
         <span className="ml-auto text-muted">
-          {filtered.length} flight{filtered.length === 1 ? "" : "s"} · drag to spin · scroll to zoom
+          {filtered.length} flight{filtered.length === 1 ? "" : "s"} · drag to spin · pinch / scroll to zoom
         </span>
       </div>
 
