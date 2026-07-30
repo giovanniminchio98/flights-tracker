@@ -165,7 +165,7 @@ export function FlightDetail({ flight }: { flight: FlightRecord }) {
               <span className="text-muted">{weather.isForecast ? "(forecast)" : "(recorded)"}</span>
             </div>
           ) : (
-            <div className="text-muted">Available within ~7 days of the flight.</div>
+            <div className="text-muted">Available up to ~16 days before the flight.</div>
           )}
         </div>
       )}
