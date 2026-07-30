@@ -25,25 +25,25 @@ export function Settings({ onClientIdReset }: { onClientIdReset: () => void }) {
     <div className="mx-auto max-w-2xl px-4 py-6">
       <h1 className="mb-6 text-2xl font-semibold text-ink">Settings</h1>
 
-      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="mb-6 rounded-xl border border-line bg-surface p-5 shadow-sm">
         <h2 className="mb-1 text-sm font-semibold text-ink">Google</h2>
-        <p className="mb-3 text-sm text-slate-500">
+        <p className="mb-3 text-sm text-muted">
           OAuth Client ID in use (public, safe to display):
         </p>
-        <div className="mb-3 break-all rounded-lg bg-slate-100 px-3 py-2 font-mono text-xs">{clientId}</div>
+        <div className="mb-3 break-all rounded-lg bg-white/10 px-3 py-2 font-mono text-xs">{clientId}</div>
         <button
           onClick={handleChangeClientId}
-          className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50"
+          className="rounded-lg border border-line px-4 py-2 text-sm font-medium hover:bg-white/5"
         >
           Change Client ID
         </button>
       </section>
 
-      <section className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="mb-6 rounded-xl border border-line bg-surface p-5 shadow-sm">
         <h2 className="mb-1 text-sm font-semibold text-ink">Google Sheet</h2>
         {spreadsheetId ? (
           <>
-            <p className="mb-3 text-sm text-slate-500">
+            <p className="mb-3 text-sm text-muted">
               Flights are stored in{" "}
               <a
                 className="text-blue-600 underline"
@@ -57,26 +57,26 @@ export function Settings({ onClientIdReset }: { onClientIdReset: () => void }) {
             </p>
             <button
               onClick={handleForgetSpreadsheet}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50"
+              className="rounded-lg border border-line px-4 py-2 text-sm font-medium hover:bg-white/5"
             >
               Forget spreadsheet (use a different one)
             </button>
           </>
         ) : (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted">
             No spreadsheet yet — one is created automatically the first time you sync or add a flight.
           </p>
         )}
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-xl border border-line bg-surface p-5 shadow-sm">
         <h2 className="mb-1 text-sm font-semibold text-ink">iCloud calendar</h2>
-        <p className="mb-3 text-sm text-slate-500">
+        <p className="mb-3 text-sm text-muted">
           There's no live iCloud connection (this app is static, so it can't hold an Apple app-specific
           password or make cross-origin CalDAV calls). Instead, export your calendar as an .ics file and
           import it from the dashboard:
         </p>
-        <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-600">
+        <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-300">
           <li>
             On Mac: open <span className="font-medium">Calendar</span> → select your iCloud calendar in the
             sidebar → <span className="font-medium">File → Export → Export...</span>

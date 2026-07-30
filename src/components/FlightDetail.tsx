@@ -42,23 +42,23 @@ export function FlightDetail({ flight }: { flight: FlightRecord }) {
   }, [flight.arrivalAirport, flight.arrivalTime, arrInfo]);
 
   return (
-    <div className="mt-3 border-t border-slate-100 pt-3 text-sm">
+    <div className="mt-3 border-t border-line pt-3 text-sm">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <div className="text-xs text-slate-400">From</div>
+          <div className="text-xs text-muted">From</div>
           <div className="font-medium text-ink">{flight.departureAirport}</div>
-          {depInfo && <div className="text-xs text-slate-500">{depInfo.city}</div>}
-          <div className="mt-1 text-xs text-slate-500">{formatDateTime(flight.departureTime)}</div>
+          {depInfo && <div className="text-xs text-muted">{depInfo.city}</div>}
+          <div className="mt-1 text-xs text-muted">{formatDateTime(flight.departureTime)}</div>
         </div>
         <div>
-          <div className="text-xs text-slate-400">To</div>
+          <div className="text-xs text-muted">To</div>
           <div className="font-medium text-ink">{flight.arrivalAirport}</div>
-          {arrInfo && <div className="text-xs text-slate-500">{arrInfo.city}</div>}
-          <div className="mt-1 text-xs text-slate-500">{formatDateTime(flight.arrivalTime)}</div>
+          {arrInfo && <div className="text-xs text-muted">{arrInfo.city}</div>}
+          <div className="mt-1 text-xs text-muted">{formatDateTime(flight.arrivalTime)}</div>
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
+      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted">
         {mins != null && (
           <span>
             Duration <span className="font-medium text-ink">{formatDuration(mins)}</span>
@@ -82,17 +82,17 @@ export function FlightDetail({ flight }: { flight: FlightRecord }) {
       </div>
 
       {arrInfo && (
-        <div className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs">
-          <div className="text-slate-400">Weather at arrival ({flight.arrivalAirport})</div>
+        <div className="mt-3 rounded-lg bg-white/5 px-3 py-2 text-xs">
+          <div className="text-muted">Weather at arrival ({flight.arrivalAirport})</div>
           {weatherLoading ? (
-            <div className="text-slate-400">Checking…</div>
+            <div className="text-muted">Checking…</div>
           ) : weather ? (
-            <div className="text-slate-700">
+            <div className="text-slate-200">
               {weather.emoji} {weather.label}, {weather.tempC}°C{" "}
-              <span className="text-slate-400">{weather.isForecast ? "(forecast)" : "(recorded)"}</span>
+              <span className="text-muted">{weather.isForecast ? "(forecast)" : "(recorded)"}</span>
             </div>
           ) : (
-            <div className="text-slate-400">Available within ~7 days of the flight.</div>
+            <div className="text-muted">Available within ~7 days of the flight.</div>
           )}
         </div>
       )}

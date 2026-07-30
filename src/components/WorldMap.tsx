@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FlightRecord } from "@/types";
 import { getAirport, isKnownAirport } from "@/lib/airports";
 import { getLandPath, project, MAP_WIDTH, MAP_HEIGHT } from "@/lib/worldMap";
@@ -137,6 +137,62 @@ export function WorldMap({
 
   const hasHighlight = Boolean(highlightedId);
 
+  // Target camera (scale + translate) that frames the highlighted flight's
+  // route; null => full world view. Selecting a flight zooms in, deselecting
+  // returns to the whole map.
+  const focus = useMemo(() => {
+    if (!highlightedId) return null;
+    const f = flights.find((x) => x.id === highlightedId);
+    if (!f || !isKnownAirport(f.departureAirport) || !isKnownAirport(f.arrivalAirport)) return null;
+    const a = project([getAirport(f.departureAirport)!.lon, getAirport(f.departureAirport)!.lat]);
+    const b = project([getAirport(f.arrivalAirport)!.lon, getAirport(f.arrivalAirport)!.lat]);
+    let minX = Math.min(a[0], b[0]);
+    let maxX = Math.max(a[0], b[0]);
+    let minY = Math.min(a[1], b[1]);
+    let maxY = Math.max(a[1], b[1]);
+    const padX = Math.max((maxX - minX) * 0.45, 90);
+    const padY = Math.max((maxY - minY) * 0.45, 90);
+    minX -= padX;
+    maxX += padX;
+    minY -= padY;
+    maxY += padY;
+    const bw = maxX - minX;
+    const bh = maxY - minY;
+    const s = Math.max(1, Math.min(Math.min(MAP_WIDTH / bw, MAP_HEIGHT / bh), 5));
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    return { s, tx: MAP_WIDTH / 2 - s * cx, ty: MAP_HEIGHT / 2 - s * cy };
+  }, [highlightedId, flights]);
+
+  // Animate the camera toward `focus` with a rAF ease (SVG transform attrs
+  // don't transition via CSS reliably, so we interpolate directly).
+  const [view, setView] = useState({ s: 1, tx: 0, ty: 0 });
+  const viewRef = useRef(view);
+  viewRef.current = view;
+
+  useEffect(() => {
+    const target = focus ?? { s: 1, tx: 0, ty: 0 };
+    const start = { ...viewRef.current };
+    const t0 = performance.now();
+    const dur = 600;
+    let raf = 0;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - t0) / dur);
+      const e = 1 - Math.pow(1 - p, 3);
+      setView({
+        s: start.s + (target.s - start.s) * e,
+        tx: start.tx + (target.tx - start.tx) * e,
+        ty: start.ty + (target.ty - start.ty) * e,
+      });
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [focus]);
+
+  const sceneTransform = `translate(${view.tx.toFixed(2)} ${view.ty.toFixed(2)}) scale(${view.s.toFixed(4)})`;
+  const invScale = 1 / view.s; // keep dot sizes constant while zoomed
+
   function routeOpacity(flightId: string, matchesFilter: boolean): number {
     if (hasHighlight) return flightId === highlightedId ? 1 : 0.12;
     return matchesFilter ? 0.9 : 0.1;
@@ -150,73 +206,94 @@ export function WorldMap({
         className={`w-full ${heightClass}`}
         onMouseLeave={() => setTooltip(null)}
       >
-        <rect x={0} y={0} width={MAP_WIDTH} height={MAP_HEIGHT} fill="#dbe2ee" />
-        <path d={landPath} fill="#9fb0c9" fillRule="evenodd" />
+        <rect x={0} y={0} width={MAP_WIDTH} height={MAP_HEIGHT} fill="#0b1626" />
 
-        {/* non-highlighted routes first, highlighted route drawn last (on top) */}
-        {routes
-          .slice()
-          .sort((a, b) => {
-            const aTop = a.flight.id === highlightedId ? 1 : 0;
-            const bTop = b.flight.id === highlightedId ? 1 : 0;
-            return aTop - bTop;
-          })
-          .map(({ flight, paths, isPast, matchesFilter }) =>
-            paths.map((d, i) => {
-              const opacity = routeOpacity(flight.id, matchesFilter);
-              const isActive = flight.id === highlightedId;
-              return (
-                <g key={`${flight.id}-${i}`} style={{ opacity }}>
-                  <path
-                    d={d}
-                    fill="none"
-                    stroke={isPast ? PAST_COLOR : UPCOMING_COLOR}
-                    strokeWidth={isActive ? 3 : 2}
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d={d}
-                    fill="none"
-                    stroke="transparent"
-                    strokeWidth={12}
-                    style={{ pointerEvents: "stroke", cursor: onSelectFlight ? "pointer" : "default" }}
-                    onClick={() => onSelectFlight?.(flight.id)}
-                    onMouseMove={(e) =>
-                      showTooltip(e, {
-                        type: "route",
-                        flightNumber: flight.flightNumber,
-                        airline: flight.airline,
-                        from: flight.departureAirport,
-                        to: flight.arrivalAirport,
-                        when: formatDateTime(flight.departureTime),
-                        isPast,
-                      })
-                    }
-                    onMouseLeave={() => setTooltip(null)}
-                  />
-                </g>
-              );
+        <g transform={sceneTransform}>
+          <path d={landPath} fill="#22304a" fillRule="evenodd" />
+
+          {/* non-highlighted routes first, highlighted route drawn last (on top) */}
+          {routes
+            .slice()
+            .sort((a, b) => {
+              const aTop = a.flight.id === highlightedId ? 1 : 0;
+              const bTop = b.flight.id === highlightedId ? 1 : 0;
+              return aTop - bTop;
             })
-          )}
+            .map(({ flight, paths, isPast, matchesFilter }) =>
+              paths.map((d, i) => {
+                const opacity = routeOpacity(flight.id, matchesFilter);
+                const isActive = flight.id === highlightedId;
+                return (
+                  <g key={`${flight.id}-${i}`} style={{ opacity }}>
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke={isPast ? PAST_COLOR : UPCOMING_COLOR}
+                      strokeWidth={isActive ? 3 : 2}
+                      strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={12}
+                      vectorEffect="non-scaling-stroke"
+                      style={{ pointerEvents: "stroke", cursor: onSelectFlight ? "pointer" : "default" }}
+                      onClick={() => onSelectFlight?.(flight.id)}
+                      onMouseMove={(e) =>
+                        showTooltip(e, {
+                          type: "route",
+                          flightNumber: flight.flightNumber,
+                          airline: flight.airline,
+                          from: flight.departureAirport,
+                          to: flight.arrivalAirport,
+                          when: formatDateTime(flight.departureTime),
+                          isPast,
+                        })
+                      }
+                      onMouseLeave={() => setTooltip(null)}
+                    />
+                  </g>
+                );
+              })
+            )}
 
-        {airports.map((a) => (
-          <g key={a.code} style={{ opacity: hasHighlight ? 0.3 : 1 }}>
-            <circle cx={a.point[0]} cy={a.point[1]} r={3.5} fill="#0b1524" stroke="#dbe2ee" strokeWidth={1.5} />
-            <circle
-              cx={a.point[0]}
-              cy={a.point[1]}
-              r={9}
-              fill="transparent"
-              onMouseMove={(e) => showTooltip(e, { type: "airport", code: a.code, name: a.info.name, count: a.count })}
-              onMouseLeave={() => setTooltip(null)}
-            />
-          </g>
-        ))}
+          {airports.map((a) => (
+            <g key={a.code} style={{ opacity: hasHighlight ? 0.35 : 1 }}>
+              <circle
+                cx={a.point[0]}
+                cy={a.point[1]}
+                r={3.5 * invScale}
+                fill="#dbe4f2"
+                stroke="#0b1626"
+                strokeWidth={1.5 * invScale}
+              />
+              <circle
+                cx={a.point[0]}
+                cy={a.point[1]}
+                r={9 * invScale}
+                fill="transparent"
+                onMouseMove={(e) => showTooltip(e, { type: "airport", code: a.code, name: a.info.name, count: a.count })}
+                onMouseLeave={() => setTooltip(null)}
+              />
+            </g>
+          ))}
+        </g>
       </svg>
+
+      {hasHighlight && (
+        <button
+          onClick={() => onSelectFlight?.(highlightedId!)}
+          className="absolute right-3 top-3 z-10 rounded-full bg-surface/90 px-3 py-1 text-xs text-ink shadow-sm hover:bg-surface"
+        >
+          Reset view ✕
+        </button>
+      )}
 
       {routes.length === 0 && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="rounded-lg bg-white/80 px-3 py-1.5 text-xs text-slate-500 shadow-sm">
+          <div className="rounded-lg bg-surface/80 px-3 py-1.5 text-xs text-muted shadow-sm">
             Add a flight to see it on the map
           </div>
         </div>
@@ -224,7 +301,7 @@ export function WorldMap({
 
       {tooltip && (
         <div
-          className="pointer-events-none absolute z-10 max-w-xs rounded-lg bg-ink px-3 py-2 text-xs text-white shadow-lg"
+          className="pointer-events-none absolute z-10 max-w-xs rounded-lg border border-line bg-surface2 px-3 py-2 text-xs text-ink shadow-lg"
           style={{ left: Math.min(tooltip.x + 12, (containerRef.current?.clientWidth ?? 0) - 160), top: tooltip.y + 12 }}
         >
           {tooltip.content.type === "route" ? (
@@ -235,13 +312,13 @@ export function WorldMap({
               <div className="text-slate-300">
                 {tooltip.content.airline} {tooltip.content.flightNumber} · {tooltip.content.when}
               </div>
-              <div className="text-slate-400">{tooltip.content.isPast ? "Past" : "Upcoming"}</div>
+              <div className="text-muted">{tooltip.content.isPast ? "Past" : "Upcoming"}</div>
             </>
           ) : (
             <>
               <div className="font-medium">{tooltip.content.code}</div>
               <div className="text-slate-300">{tooltip.content.name}</div>
-              <div className="text-slate-400">
+              <div className="text-muted">
                 {tooltip.content.count} flight{tooltip.content.count === 1 ? "" : "s"}
               </div>
             </>

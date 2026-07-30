@@ -4,6 +4,25 @@
 
 html,
 body {
-  background-color: #eef1f6;
-  color: #0b1524;
+  background-color: #0a1120;
+  color: #e7ecf6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Cascadia Code", "Roboto Mono", Consolas, monospace;
 }
+
+/* Native form controls (date pickers, etc.) render in dark. */
+:root {
+  color-scheme: dark;
+}
+
+/* Inputs adopt the dark surface so no white boxes appear anywhere. */
+input,
+textarea,
+select {
+  background-color: #1a2440;
+  color: #e7ecf6;
+}
+input::placeholder,
+textarea::placeholder {
+  color: #93a1bd;
+}
+

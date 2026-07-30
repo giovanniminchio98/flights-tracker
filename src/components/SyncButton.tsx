@@ -30,11 +30,11 @@ export function SyncButton({ accessToken, onSynced }: { accessToken: string; onS
       <button
         onClick={handleSync}
         disabled={loading}
-        className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
+        className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-soft disabled:opacity-50"
       >
         {loading ? "Syncing…" : "Sync Google now"}
       </button>
-      {message && <div className={`text-xs ${isError ? "text-red-600" : "text-slate-500"}`}>{message}</div>}
+      {message && <div className={`text-xs ${isError ? "text-red-400" : "text-muted"}`}>{message}</div>}
     </div>
   );
 }
