@@ -4,7 +4,13 @@ import { FlightsTab } from "./FlightsTab";
 import { PassportTab } from "./PassportTab";
 import { AddFlightForm } from "./AddFlightForm";
 import { ApiKeySettings } from "./ApiKeySettings";
-import { getFlights, deleteFlight } from "@/lib/localFlightStore";
+import {
+  getFlights,
+  deleteFlight,
+  loadSampleFlights,
+  clearSampleFlights,
+  hasSampleFlights,
+} from "@/lib/localFlightStore";
 import { computeStats } from "@/lib/stats";
 import { useUnits } from "@/lib/UnitsContext";
 import type { FlightRecord } from "@/types";
@@ -45,6 +51,19 @@ export function AppShell() {
     if (highlightedId === id) setHighlightedId(null);
     load();
   }
+
+  function handleLoadSamples() {
+    loadSampleFlights();
+    load();
+  }
+
+  function handleClearSamples() {
+    clearSampleFlights();
+    setShowAccountMenu(false);
+    load();
+  }
+
+  const samplesPresent = hasSampleFlights();
 
   function switchTab(next: Tab) {
     setTab(next);
@@ -95,6 +114,24 @@ export function AppShell() {
                 >
                   Flight lookup API…
                 </button>
+                {samplesPresent ? (
+                  <button
+                    onClick={handleClearSamples}
+                    className="w-full rounded-lg px-2 py-1.5 text-left text-red-600 hover:bg-slate-50"
+                  >
+                    Clear sample flights
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      handleLoadSamples();
+                      setShowAccountMenu(false);
+                    }}
+                    className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-slate-50"
+                  >
+                    Load sample flights
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -148,6 +185,7 @@ export function AppShell() {
               onSelect={(id) => setHighlightedId((cur) => (cur === id ? null : id))}
               onDelete={handleDelete}
               onAdd={() => setShowAddForm(true)}
+              onLoadSamples={handleLoadSamples}
             />
           ) : (
             <PassportTab stats={stats} activeFilterLabel={mapFilter?.label ?? null} onSelectFilter={setMapFilter} />
