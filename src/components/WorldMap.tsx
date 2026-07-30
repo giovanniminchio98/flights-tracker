@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState } from "react";
 import type { FlightRecord } from "@/types";
-import { AIRPORTS, isKnownAirport } from "@/lib/airports";
+import { getAirport, isKnownAirport } from "@/lib/airports";
 import { getLandPath, project, MAP_WIDTH, MAP_HEIGHT } from "@/lib/worldMap";
 import { formatDateTime } from "@/lib/dateUtils";
 
-const PAST_COLOR = "#2a78d6"; // categorical slot 1 (blue) — validated CVD-safe pair with slot 2
+const PAST_COLOR = "#2a78d6"; // categorical slot 1 (blue) — validated CVD-safe with slot 2
 const UPCOMING_COLOR = "#eb6834"; // categorical slot 2 (orange)
 
 interface RouteTooltip {
@@ -33,9 +33,6 @@ function shortestLonDelta(lon1: number, lon2: number): number {
   return d;
 }
 
-/** A gentle bow between two already-projected points, always arcing toward
- * the top of the map, so routes read as flight paths rather than straight
- * rulers laid over the globe. */
 function arcPath([x1, y1]: [number, number], [x2, y2]: [number, number]): string {
   const dx = x2 - x1;
   const dy = y2 - y1;
@@ -52,10 +49,9 @@ function arcPath([x1, y1]: [number, number], [x2, y2]: [number, number]): string
   return `M${x1.toFixed(1)},${y1.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
 }
 
-/** Builds one or two path segments for a route between two lon/lat points,
- * splitting at the antimeridian when the shorter direction crosses it —
- * otherwise a trans-Pacific route would draw as a straight line across the
- * entire map instead of wrapping off one edge and back in the other. */
+/** Splits a route at the antimeridian when the shorter direction crosses it,
+ * so trans-Pacific routes wrap off one edge and back in the other instead of
+ * drawing a straight line across the whole map. */
 function buildRoutePaths(from: [number, number], to: [number, number]): string[] {
   const [lon1, lat1] = from;
   const [lon2, lat2] = to;
@@ -77,7 +73,26 @@ function buildRoutePaths(from: [number, number], to: [number, number]): string[]
   ];
 }
 
-export function WorldMap({ flights }: { flights: FlightRecord[] }) {
+export interface WorldMapProps {
+  flights: FlightRecord[];
+  /** When set, this flight is drawn on top at full strength and every other
+   * route/airport is dimmed — the "tap a flight, it lights up" behavior. */
+  highlightedId?: string | null;
+  /** Optional predicate to fade routes that don't match the current Passport
+   * stat filter (e.g. only flights touching a country/airport). */
+  routeFilter?: (flight: FlightRecord) => boolean;
+  /** CSS height for the map's aspect box. */
+  heightClass?: string;
+  onSelectFlight?: (id: string) => void;
+}
+
+export function WorldMap({
+  flights,
+  highlightedId,
+  routeFilter,
+  heightClass = "aspect-[960/460]",
+  onSelectFlight,
+}: WorldMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ content: TooltipContent; x: number; y: number } | null>(null);
 
@@ -88,13 +103,14 @@ export function WorldMap({ flights }: { flights: FlightRecord[] }) {
     return flights
       .filter((f) => isKnownAirport(f.departureAirport) && isKnownAirport(f.arrivalAirport))
       .map((f) => {
-        const from = AIRPORTS[f.departureAirport.toUpperCase()];
-        const to = AIRPORTS[f.arrivalAirport.toUpperCase()];
+        const from = getAirport(f.departureAirport)!;
+        const to = getAirport(f.arrivalAirport)!;
         const isPast = new Date(f.departureTime).getTime() < now;
         const paths = buildRoutePaths([from.lon, from.lat], [to.lon, to.lat]);
-        return { flight: f, paths, isPast };
+        const matchesFilter = routeFilter ? routeFilter(f) : true;
+        return { flight: f, paths, isPast, matchesFilter };
       });
-  }, [flights, now]);
+  }, [flights, now, routeFilter]);
 
   const airports = useMemo(() => {
     const counts = new Map<string, number>();
@@ -108,8 +124,8 @@ export function WorldMap({ flights }: { flights: FlightRecord[] }) {
     return Array.from(counts.entries()).map(([code, count]) => ({
       code,
       count,
-      info: AIRPORTS[code],
-      point: project([AIRPORTS[code].lon, AIRPORTS[code].lat]),
+      info: getAirport(code)!,
+      point: project([getAirport(code)!.lon, getAirport(code)!.lat]),
     }));
   }, [flights]);
 
@@ -119,92 +135,97 @@ export function WorldMap({ flights }: { flights: FlightRecord[] }) {
     setTooltip({ content, x: e.clientX - rect.left, y: e.clientY - rect.top });
   }
 
-  if (routes.length === 0) {
-    return null;
+  const hasHighlight = Boolean(highlightedId);
+
+  function routeOpacity(flightId: string, matchesFilter: boolean): number {
+    if (hasHighlight) return flightId === highlightedId ? 1 : 0.12;
+    return matchesFilter ? 0.9 : 0.1;
   }
 
   return (
-    <div ref={containerRef} className="relative rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <div className="text-xs font-medium text-slate-500">Where you've been &amp; where you're going</div>
-        <div className="flex items-center gap-3 text-xs text-slate-500">
-          <span className="flex items-center gap-1">
-            <span className="inline-block h-0.5 w-4 rounded-full" style={{ backgroundColor: PAST_COLOR }} />
-            Past
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block h-0.5 w-4 rounded-full" style={{ backgroundColor: UPCOMING_COLOR }} />
-            Upcoming
-          </span>
-        </div>
-      </div>
+    <div ref={containerRef} className="relative">
+      <svg
+        viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
+        preserveAspectRatio="xMidYMid slice"
+        className={`w-full ${heightClass}`}
+        onMouseLeave={() => setTooltip(null)}
+      >
+        <rect x={0} y={0} width={MAP_WIDTH} height={MAP_HEIGHT} fill="#eaf1f8" />
+        <path d={landPath} fill="#cbd7e6" fillRule="evenodd" />
 
-      <svg viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} className="w-full" onMouseLeave={() => setTooltip(null)}>
-        <rect x={0} y={0} width={MAP_WIDTH} height={MAP_HEIGHT} fill="#f8fafc" />
-        <path d={landPath} fill="#e2e8f0" fillRule="evenodd" />
-
-        {routes.map(({ flight, paths, isPast }) =>
-          paths.map((d, i) => (
-            <g key={`${flight.id}-${i}`}>
-              <path d={d} fill="none" stroke={isPast ? PAST_COLOR : UPCOMING_COLOR} strokeWidth={2} strokeLinecap="round" />
-              <path
-                d={d}
-                fill="none"
-                stroke="transparent"
-                strokeWidth={10}
-                style={{ pointerEvents: "stroke" }}
-                onMouseEnter={(e) =>
-                  showTooltip(e, {
-                    type: "route",
-                    flightNumber: flight.flightNumber,
-                    airline: flight.airline,
-                    from: flight.departureAirport,
-                    to: flight.arrivalAirport,
-                    when: formatDateTime(flight.departureTime),
-                    isPast,
-                  })
-                }
-                onMouseMove={(e) =>
-                  showTooltip(e, {
-                    type: "route",
-                    flightNumber: flight.flightNumber,
-                    airline: flight.airline,
-                    from: flight.departureAirport,
-                    to: flight.arrivalAirport,
-                    when: formatDateTime(flight.departureTime),
-                    isPast,
-                  })
-                }
-                onMouseLeave={() => setTooltip(null)}
-              />
-            </g>
-          ))
-        )}
+        {/* non-highlighted routes first, highlighted route drawn last (on top) */}
+        {routes
+          .slice()
+          .sort((a, b) => {
+            const aTop = a.flight.id === highlightedId ? 1 : 0;
+            const bTop = b.flight.id === highlightedId ? 1 : 0;
+            return aTop - bTop;
+          })
+          .map(({ flight, paths, isPast, matchesFilter }) =>
+            paths.map((d, i) => {
+              const opacity = routeOpacity(flight.id, matchesFilter);
+              const isActive = flight.id === highlightedId;
+              return (
+                <g key={`${flight.id}-${i}`} style={{ opacity }}>
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke={isPast ? PAST_COLOR : UPCOMING_COLOR}
+                    strokeWidth={isActive ? 3 : 2}
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={12}
+                    style={{ pointerEvents: "stroke", cursor: onSelectFlight ? "pointer" : "default" }}
+                    onClick={() => onSelectFlight?.(flight.id)}
+                    onMouseMove={(e) =>
+                      showTooltip(e, {
+                        type: "route",
+                        flightNumber: flight.flightNumber,
+                        airline: flight.airline,
+                        from: flight.departureAirport,
+                        to: flight.arrivalAirport,
+                        when: formatDateTime(flight.departureTime),
+                        isPast,
+                      })
+                    }
+                    onMouseLeave={() => setTooltip(null)}
+                  />
+                </g>
+              );
+            })
+          )}
 
         {airports.map((a) => (
-          <g key={a.code}>
-            <circle cx={a.point[0]} cy={a.point[1]} r={4} fill="#0f172a" stroke="#f8fafc" strokeWidth={2} />
+          <g key={a.code} style={{ opacity: hasHighlight ? 0.3 : 1 }}>
+            <circle cx={a.point[0]} cy={a.point[1]} r={3.5} fill="#0f172a" stroke="#eaf1f8" strokeWidth={1.5} />
             <circle
               cx={a.point[0]}
               cy={a.point[1]}
-              r={8}
+              r={9}
               fill="transparent"
-              onMouseEnter={(e) =>
-                showTooltip(e, { type: "airport", code: a.code, name: a.info.name, count: a.count })
-              }
-              onMouseMove={(e) =>
-                showTooltip(e, { type: "airport", code: a.code, name: a.info.name, count: a.count })
-              }
+              onMouseMove={(e) => showTooltip(e, { type: "airport", code: a.code, name: a.info.name, count: a.count })}
               onMouseLeave={() => setTooltip(null)}
             />
           </g>
         ))}
       </svg>
 
+      {routes.length === 0 && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="rounded-lg bg-white/80 px-3 py-1.5 text-xs text-slate-500 shadow-sm">
+            Add a flight to see it on the map
+          </div>
+        </div>
+      )}
+
       {tooltip && (
         <div
           className="pointer-events-none absolute z-10 max-w-xs rounded-lg bg-ink px-3 py-2 text-xs text-white shadow-lg"
-          style={{ left: tooltip.x + 12, top: tooltip.y + 12 }}
+          style={{ left: Math.min(tooltip.x + 12, (containerRef.current?.clientWidth ?? 0) - 160), top: tooltip.y + 12 }}
         >
           {tooltip.content.type === "route" ? (
             <>

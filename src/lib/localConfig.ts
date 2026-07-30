@@ -9,7 +9,18 @@ const KEYS = {
   googleClientId: "flight-tracker:google-client-id",
   spreadsheetId: "flight-tracker:spreadsheet-id",
   aeroDataBoxKey: "flight-tracker:aerodatabox-key",
+  units: "flight-tracker:units",
 } as const;
+
+export type Units = "km" | "mi";
+
+export function getUnits(): Units {
+  return localStorage.getItem(KEYS.units) === "mi" ? "mi" : "km";
+}
+
+export function setUnits(units: Units): void {
+  localStorage.setItem(KEYS.units, units);
+}
 
 export function getGoogleClientId(): string | null {
   return localStorage.getItem(KEYS.googleClientId);
