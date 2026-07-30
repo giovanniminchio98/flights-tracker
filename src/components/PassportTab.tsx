@@ -1,4 +1,5 @@
-import type { FlightStats, LabeledCount } from "@/lib/stats";
+import { useMemo, useState } from "react";
+import { computeStats, type LabeledCount } from "@/lib/stats";
 import type { MapFilter } from "./AppShell";
 import type { FlightRecord } from "@/types";
 import { useUnits } from "@/lib/UnitsContext";
@@ -165,18 +166,37 @@ function yearFilter(year: string): MapFilter {
 }
 
 export function PassportTab({
-  stats,
+  flights,
   activeFilterLabel,
   onSelectFilter,
 }: {
-  stats: FlightStats;
+  flights: FlightRecord[];
   activeFilterLabel: string | null;
   onSelectFilter: (f: MapFilter | null) => void;
 }) {
   const { units } = useUnits();
   const u = unitLabel(units);
 
-  if (stats.totalFlights === 0) {
+  // Year filter — recomputes every stat over just the chosen year's flights.
+  const years = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          flights
+            .map((f) => new Date(f.departureTime).getFullYear())
+            .filter((y) => !Number.isNaN(y))
+        )
+      ).sort((a, b) => b - a),
+    [flights]
+  );
+  const [year, setYear] = useState<number | "all">("all");
+  const scoped = useMemo(
+    () => (year === "all" ? flights : flights.filter((f) => new Date(f.departureTime).getFullYear() === year)),
+    [flights, year]
+  );
+  const stats = useMemo(() => computeStats(scoped), [scoped]);
+
+  if (flights.length === 0) {
     return <div className="py-16 text-center text-sm text-muted">Add flights to build your passport.</div>;
   }
 
@@ -186,11 +206,40 @@ export function PassportTab({
 
   return (
     <div className="space-y-6">
+      {years.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs uppercase tracking-wide text-muted">Year</span>
+          <button
+            onClick={() => setYear("all")}
+            className={`rounded-full px-3 py-1 text-xs transition ${
+              year === "all" ? "bg-accent text-white" : "bg-white/10 text-muted hover:bg-white/20"
+            }`}
+          >
+            All
+          </button>
+          {years.map((y) => (
+            <button
+              key={y}
+              onClick={() => setYear(y)}
+              className={`rounded-full px-3 py-1 text-xs transition ${
+                year === y ? "bg-accent text-white" : "bg-white/10 text-muted hover:bg-white/20"
+              }`}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div>
         <SectionLabel>Overview</SectionLabel>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat label="Total flights" value={stats.totalFlights} />
-          <Stat label="This year" value={stats.flightsThisYear} />
+          {year === "all" ? (
+            <Stat label="This year" value={stats.flightsThisYear} />
+          ) : (
+            <Stat label="Past" value={stats.pastCount} />
+          )}
           <Stat label="Upcoming" value={stats.upcomingCount} />
           <Stat label="Unique routes" value={stats.uniqueRoutes} />
         </div>
@@ -199,8 +248,20 @@ export function PassportTab({
       <div>
         <SectionLabel>Distance &amp; time</SectionLabel>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label={`Distance this year (${u})`} value={formatDistanceValue(stats.kmThisYear, units)} />
-          <Stat label={`Distance all-time (${u})`} value={formatDistanceValue(stats.kmAllTime, units)} />
+          {year === "all" ? (
+            <>
+              <Stat label={`Distance this year (${u})`} value={formatDistanceValue(stats.kmThisYear, units)} />
+              <Stat label={`Distance all-time (${u})`} value={formatDistanceValue(stats.kmAllTime, units)} />
+            </>
+          ) : (
+            <>
+              <Stat label={`Distance in ${year} (${u})`} value={formatDistanceValue(stats.kmAllTime, units)} />
+              <Stat
+                label="Longest single flight"
+                value={stats.longestDurationMinutes ? formatDuration(stats.longestDurationMinutes) : "—"}
+              />
+            </>
+          )}
           <Stat label="Time in the air" value={formatDuration(stats.totalFlightMinutes)} />
           <Stat label="Avg flight" value={stats.avgFlightMinutes ? formatDuration(stats.avgFlightMinutes) : "—"} />
         </div>
