@@ -150,8 +150,8 @@ export function WorldMap({
         className={`w-full ${heightClass}`}
         onMouseLeave={() => setTooltip(null)}
       >
-        <rect x={0} y={0} width={MAP_WIDTH} height={MAP_HEIGHT} fill="#eaf1f8" />
-        <path d={landPath} fill="#cbd7e6" fillRule="evenodd" />
+        <rect x={0} y={0} width={MAP_WIDTH} height={MAP_HEIGHT} fill="#dbe2ee" />
+        <path d={landPath} fill="#9fb0c9" fillRule="evenodd" />
 
         {/* non-highlighted routes first, highlighted route drawn last (on top) */}
         {routes
@@ -201,7 +201,7 @@ export function WorldMap({
 
         {airports.map((a) => (
           <g key={a.code} style={{ opacity: hasHighlight ? 0.3 : 1 }}>
-            <circle cx={a.point[0]} cy={a.point[1]} r={3.5} fill="#0f172a" stroke="#eaf1f8" strokeWidth={1.5} />
+            <circle cx={a.point[0]} cy={a.point[1]} r={3.5} fill="#0b1524" stroke="#dbe2ee" strokeWidth={1.5} />
             <circle
               cx={a.point[0]}
               cy={a.point[1]}
