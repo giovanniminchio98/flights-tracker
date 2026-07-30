@@ -1,64 +1,110 @@
 import type { FlightRecord } from "@/types";
 import { FlightDetail } from "./FlightDetail";
 import { getAirport } from "@/lib/airports";
-import { formatDateTime } from "@/lib/dateUtils";
+import { formatDateShort, formatTimeShort, isNextDay } from "@/lib/dateUtils";
+import { getCountdown, formatRelative } from "@/lib/countdown";
+import { useNow } from "@/lib/useNow";
 
-const SOURCE_BADGES: Record<string, { label: string; className: string }> = {
-  google: { label: "Google", className: "bg-blue-500/15 text-blue-300 border-blue-400/30" },
-  icloud: { label: "iCloud", className: "bg-white/10 text-slate-300 border-line" },
-  manual: { label: "Manual", className: "bg-amber-500/15 text-amber-300 border-amber-400/30" },
-  sample: { label: "Sample", className: "bg-violet-500/15 text-violet-300 border-violet-400/30" },
-};
+function toneClass(kind: string): string {
+  if (kind === "soon" || kind === "inflight") return "text-emerald-400";
+  return "text-ink";
+}
 
-function FlightRow({
+/** Prominent upcoming/active row: big live countdown on the left (Flighty
+ * style), slim body, tap to expand the full detail. */
+function UpcomingRow({
   flight,
+  now,
   expanded,
   onSelect,
   onDelete,
 }: {
   flight: FlightRecord;
+  now: number;
   expanded: boolean;
   onSelect: () => void;
   onDelete: () => void;
 }) {
-  const depCity = getAirport(flight.departureAirport)?.city;
-  const arrCity = getAirport(flight.arrivalAirport)?.city;
-  const sources = flight.sources.split(",").map((s) => s.trim()).filter(Boolean);
+  const depCity = getAirport(flight.departureAirport)?.city ?? flight.departureAirport;
+  const arrCity = getAirport(flight.arrivalAirport)?.city ?? flight.arrivalAirport;
+  const cd = getCountdown(flight.departureTime, flight.arrivalTime, now);
 
   return (
-    <div className={`rounded-xl border bg-surface shadow-sm transition ${expanded ? "border-ink" : "border-line"}`}>
-      <button onClick={onSelect} className="flex w-full items-start justify-between gap-3 p-4 text-left">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-ink">{flight.airline || "Flight"}</span>
-            <span className="rounded bg-white/10 px-1.5 py-0.5 text-xs font-mono text-slate-300">{flight.flightNumber}</span>
-          </div>
-          <div className="mt-1 text-lg font-medium text-ink">
-            {flight.departureAirport}
-            <span className="mx-2 text-muted">→</span>
-            {flight.arrivalAirport}
-          </div>
-          {(depCity || arrCity) && (
-            <div className="truncate text-xs text-muted">
-              {depCity ?? flight.departureAirport} → {arrCity ?? flight.arrivalAirport}
-            </div>
-          )}
-          <div className="mt-1 text-sm text-muted">{formatDateTime(flight.departureTime)}</div>
+    <div className={`rounded-xl border bg-surface transition ${expanded ? "border-emerald-500/50" : "border-line"}`}>
+      <button onClick={onSelect} className="flex w-full items-center gap-3 p-3 text-left">
+        <div className="w-14 shrink-0 text-center">
+          <div className={`text-3xl font-bold leading-none ${toneClass(cd.kind)}`}>{cd.big}</div>
+          <div className="mt-1 text-[10px] tracking-widest text-muted">{cd.unit}</div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          {sources.map((s) => {
-            const b = SOURCE_BADGES[s] ?? { label: s, className: "bg-white/10 text-slate-300 border-line" };
-            return (
-              <span key={s} className={`rounded-full border px-2 py-0.5 text-xs ${b.className}`}>
-                {b.label}
-              </span>
-            );
-          })}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="truncate text-xs text-muted">
+              {flight.airline || "Flight"} · {flight.flightNumber}
+            </span>
+            <span className="shrink-0 text-xs text-muted">{formatDateShort(flight.departureTime)}</span>
+          </div>
+          <div className="mt-0.5 truncate text-base font-semibold text-ink">
+            {depCity} <span className="text-muted">→</span> {arrCity}
+          </div>
+          <div className="mt-1 flex gap-4 text-xs text-muted">
+            <span>↗ {flight.departureAirport} {formatTimeShort(flight.departureTime)}</span>
+            <span>
+              ↘ {flight.arrivalAirport} {formatTimeShort(flight.arrivalTime)}
+              {isNextDay(flight.departureTime, flight.arrivalTime) && <sup className="ml-0.5">+1</sup>}
+            </span>
+          </div>
         </div>
       </button>
 
       {expanded && (
-        <div className="px-4 pb-4">
+        <div className="px-3 pb-3">
+          <FlightDetail flight={flight} />
+          <button onClick={onDelete} className="mt-3 text-xs text-muted hover:text-red-400">
+            Delete flight
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Compact, de-emphasized past row — one line, muted, still tappable to
+ * expand. Past flights matter less than upcoming ones. */
+function PastRow({
+  flight,
+  now,
+  expanded,
+  onSelect,
+  onDelete,
+}: {
+  flight: FlightRecord;
+  now: number;
+  expanded: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
+  const ago = formatRelative(flight.departureTime, now);
+
+  return (
+    <div className={`rounded-lg border transition ${expanded ? "border-line bg-surface" : "border-transparent"}`}>
+      <button
+        onClick={onSelect}
+        className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left ${expanded ? "" : "opacity-70 hover:opacity-100"}`}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="w-16 shrink-0 font-mono text-[11px] text-muted">{formatDateShort(flight.departureTime)}</span>
+          <span className="shrink-0 text-sm font-medium text-ink">
+            {flight.departureAirport} <span className="text-muted">→</span> {flight.arrivalAirport}
+          </span>
+          <span className="truncate text-xs text-muted">
+            {flight.airline || "Flight"} · {flight.flightNumber}
+          </span>
+        </div>
+        <span className="shrink-0 text-[11px] text-muted">{ago.str} ago</span>
+      </button>
+
+      {expanded && (
+        <div className="px-3 pb-3">
           <FlightDetail flight={flight} />
           <button onClick={onDelete} className="mt-3 text-xs text-muted hover:text-red-400">
             Delete flight
@@ -73,7 +119,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div>
       <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">{title}</div>
-      <div className="space-y-3">{children}</div>
+      <div className="space-y-2">{children}</div>
     </div>
   );
 }
@@ -93,23 +139,16 @@ export function FlightsTab({
   onAdd: () => void;
   onLoadSamples: () => void;
 }) {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const endOfToday = startOfToday.getTime() + 86400000;
+  const now = useNow();
 
-  const sorted = [...flights].sort(
-    (a, b) => new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime()
-  );
-
-  const today = sorted.filter((f) => {
-    const t = new Date(f.departureTime).getTime();
-    return t >= startOfToday.getTime() && t < endOfToday;
-  });
-  const upcoming = sorted.filter((f) => new Date(f.departureTime).getTime() >= endOfToday);
-  const past = sorted
-    .filter((f) => new Date(f.departureTime).getTime() < startOfToday.getTime())
-    .reverse()
-    .slice(0, 20);
+  // Upcoming/active = not yet landed (includes in-flight); past = already landed.
+  const upcoming = [...flights]
+    .filter((f) => new Date(f.arrivalTime).getTime() >= now)
+    .sort((a, b) => new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime());
+  const past = [...flights]
+    .filter((f) => new Date(f.arrivalTime).getTime() < now)
+    .sort((a, b) => new Date(b.departureTime).getTime() - new Date(a.departureTime).getTime())
+    .slice(0, 30);
 
   if (flights.length === 0) {
     return (
@@ -131,23 +170,40 @@ export function FlightsTab({
     );
   }
 
-  const renderRow = (f: FlightRecord) => (
-    <FlightRow
-      key={f.id}
-      flight={f}
-      expanded={highlightedId === f.id}
-      onSelect={() => onSelect(f.id)}
-      onDelete={() => onDelete(f.id)}
-    />
-  );
-
   return (
     <div className="space-y-6">
-      {today.length > 0 && <Section title="Today">{today.map(renderRow)}</Section>}
-      {upcoming.length > 0 && <Section title={`Upcoming (${upcoming.length})`}>{upcoming.map(renderRow)}</Section>}
-      {past.length > 0 && <Section title="Recent flights">{past.map(renderRow)}</Section>}
-      {today.length === 0 && upcoming.length === 0 && (
-        <div className="pt-2 text-center text-xs text-muted">No upcoming flights — add one with the + button.</div>
+      {upcoming.length > 0 ? (
+        <Section title={`Upcoming (${upcoming.length})`}>
+          {upcoming.map((f) => (
+            <UpcomingRow
+              key={f.id}
+              flight={f}
+              now={now}
+              expanded={highlightedId === f.id}
+              onSelect={() => onSelect(f.id)}
+              onDelete={() => onDelete(f.id)}
+            />
+          ))}
+        </Section>
+      ) : (
+        <div className="rounded-xl border border-line bg-surface p-4 text-center text-sm text-muted">
+          No upcoming flights — add one with the + button.
+        </div>
+      )}
+
+      {past.length > 0 && (
+        <Section title="Past flights">
+          {past.map((f) => (
+            <PastRow
+              key={f.id}
+              flight={f}
+              now={now}
+              expanded={highlightedId === f.id}
+              onSelect={() => onSelect(f.id)}
+              onDelete={() => onDelete(f.id)}
+            />
+          ))}
+        </Section>
       )}
     </div>
   );
