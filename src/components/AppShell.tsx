@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { WorldMap } from "./WorldMap";
 import { FlightsTab } from "./FlightsTab";
 import { PassportTab } from "./PassportTab";
@@ -36,6 +36,8 @@ export function AppShell() {
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showGlobe, setShowGlobe] = useState(false);
 
+  const mainRef = useRef<HTMLElement>(null);
+
   const load = useCallback(() => {
     setFlights(getFlights());
   }, []);
@@ -43,6 +45,13 @@ export function AppShell() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Reset the scroll container to the top whenever the tab changes — otherwise
+  // switching from the long Passport (scrolled down) to the shorter Flights
+  // tab leaves the view scrolled past the list, so it looks empty.
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [tab]);
 
   function handleDelete(id: string) {
     if (!confirm("Delete this flight?")) return;
@@ -182,7 +191,7 @@ export function AppShell() {
       </nav>
 
       {/* Scrollable content */}
-      <main className="flex-1 overflow-y-auto">
+      <main ref={mainRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-4 py-5">
           {tab === "flights" ? (
             <FlightsTab
