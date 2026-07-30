@@ -1,11 +1,10 @@
-import { Nav } from "@/components/Nav";
-import { Dashboard } from "@/components/Dashboard";
+import { UnitsProvider } from "@/lib/UnitsContext";
+import { AppShell } from "@/components/AppShell";
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-paper">
-      <Nav />
-      <Dashboard />
-    </div>
+    <UnitsProvider>
+      <AppShell />
+    </UnitsProvider>
   );
 }
