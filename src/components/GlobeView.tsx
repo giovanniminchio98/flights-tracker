@@ -10,6 +10,7 @@ import type { Feature, LineString } from "geojson";
 import type { FlightRecord } from "@/types";
 import { getAirport, isKnownAirport } from "@/lib/airports";
 import { getLandFeature } from "@/lib/worldMap";
+import { formatDateShort } from "@/lib/dateUtils";
 
 const PAST = "#2a78d6";
 const UPCOMING = "#eb6834";
@@ -19,6 +20,9 @@ type FilterMode = "all" | "upcoming" | "past";
 interface Arc {
   line: Feature<LineString>;
   color: string;
+  mid: [number, number]; // lon/lat midpoint for the label
+  routeLabel: string; // "HEL → JFK"
+  dateLabel: string; // "Fri, 31 Jul"
 }
 
 /** Builds a great-circle LineString (sampled) between two airports so
@@ -65,7 +69,14 @@ export function GlobeView({
         const a = getAirport(f.departureAirport)!;
         const b = getAirport(f.arrivalAirport)!;
         const past = new Date(f.arrivalTime).getTime() < now;
-        return { line: greatCircle([a.lon, a.lat], [b.lon, b.lat]), color: past ? PAST : UPCOMING };
+        const mid = geoInterpolate([a.lon, a.lat], [b.lon, b.lat])(0.5) as [number, number];
+        return {
+          line: greatCircle([a.lon, a.lat], [b.lon, b.lat]),
+          color: past ? PAST : UPCOMING,
+          mid,
+          routeLabel: `${f.departureAirport.toUpperCase()} → ${f.arrivalAirport.toUpperCase()}`,
+          dateLabel: formatDateShort(f.departureTime),
+        };
       }),
     [filtered, now]
   );
@@ -158,20 +169,62 @@ export function GlobeView({
       }
 
       // Airport points (only front hemisphere — geoPath point radius via projection)
+      const r = rotationRef.current;
       for (const p of points) {
         const xy = projection(p);
         if (!xy) continue;
-        // cull points on the back of the globe
         const [lon, lat] = p;
-        const r = rotationRef.current;
-        // rough visibility: dot product of point normal with view direction
-        const visible = isFront(lon, lat, -r[0], -r[1]);
-        if (!visible) continue;
+        if (!isFront(lon, lat, -r[0], -r[1])) continue;
         ctx.beginPath();
         ctx.arc(xy[0], xy[1], 2.5, 0, 2 * Math.PI);
         ctx.fillStyle = "#dbe4f2";
         ctx.fill();
       }
+
+      // Per-flight labels near each arc's midpoint (front hemisphere only).
+      // Suppressed when zoomed far out with many flights to avoid clutter.
+      const showLabels = scaleRef.current >= 1.4 || arcs.length <= 8;
+      if (showLabels) {
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        for (const arc of arcs) {
+          if (!isFront(arc.mid[0], arc.mid[1], -r[0], -r[1])) continue;
+          const xy = projection(arc.mid);
+          if (!xy) continue;
+          const [x, y] = xy;
+
+          ctx.font = "600 11px ui-monospace, Menlo, monospace";
+          const routeW = ctx.measureText(arc.routeLabel).width;
+          ctx.font = "10px ui-monospace, Menlo, monospace";
+          const dateW = ctx.measureText(arc.dateLabel).width;
+          const boxW = Math.max(routeW, dateW) + 12;
+          const boxH = 30;
+          const boxX = x - boxW / 2;
+          const boxY = y - boxH - 8;
+
+          // backing pill for legibility over land/ocean
+          ctx.fillStyle = "rgba(10,17,32,0.82)";
+          roundRect(ctx, boxX, boxY, boxW, boxH, 6);
+          ctx.fill();
+
+          ctx.fillStyle = "#e7ecf6";
+          ctx.font = "600 11px ui-monospace, Menlo, monospace";
+          ctx.fillText(arc.routeLabel, x, boxY + 15);
+          ctx.fillStyle = "#93a1bd";
+          ctx.font = "10px ui-monospace, Menlo, monospace";
+          ctx.fillText(arc.dateLabel, x, boxY + 27);
+        }
+      }
+    }
+
+    function roundRect(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, radius: number) {
+      c.beginPath();
+      c.moveTo(x + radius, y);
+      c.arcTo(x + w, y, x + w, y + h, radius);
+      c.arcTo(x + w, y + h, x, y + h, radius);
+      c.arcTo(x, y + h, x, y, radius);
+      c.arcTo(x, y, x + w, y, radius);
+      c.closePath();
     }
 
     let raf = 0;
