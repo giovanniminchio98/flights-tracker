@@ -4,6 +4,7 @@ import { FlightsTab } from "./FlightsTab";
 import { PassportTab } from "./PassportTab";
 import { AddFlightForm } from "./AddFlightForm";
 import { ApiKeySettings } from "./ApiKeySettings";
+import { GlobeView } from "./GlobeView";
 import {
   getFlights,
   deleteFlight,
@@ -34,6 +35,7 @@ export function AppShell() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showApiSettings, setShowApiSettings] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [showGlobe, setShowGlobe] = useState(false);
 
   const load = useCallback(() => {
     setFlights(getFlights());
@@ -158,6 +160,13 @@ export function AppShell() {
             </button>
           </div>
         )}
+        <button
+          onClick={() => setShowGlobe(true)}
+          className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-surface/90 px-3 py-1 text-xs text-ink shadow-sm hover:bg-surface"
+          title="Open the interactive globe"
+        >
+          🌍 Globe
+        </button>
       </div>
 
       {/* Tab bar */}
@@ -204,6 +213,7 @@ export function AppShell() {
 
       {showAddForm && <AddFlightForm onAdded={load} onClose={() => setShowAddForm(false)} />}
       {showApiSettings && <ApiKeySettings onClose={() => setShowApiSettings(false)} />}
+      {showGlobe && <GlobeView flights={flights} onClose={() => setShowGlobe(false)} />}
     </div>
   );
 }

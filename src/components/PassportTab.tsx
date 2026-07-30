@@ -89,6 +89,49 @@ function BarList({
   );
 }
 
+const EQUATOR_KM = 40075;
+const MOON_KM = 384400;
+
+/** A track with a plane travelling from a start emoji toward an end emoji,
+ * used for the Earth→Moon / around-the-world journey visuals. */
+function JourneyMeter({
+  startEmoji,
+  endEmoji,
+  pct,
+  title,
+  detail,
+}: {
+  startEmoji: string;
+  endEmoji: string;
+  pct: number; // 0..100 position of the plane
+  title: string;
+  detail: string;
+}) {
+  const clamped = Math.max(0, Math.min(100, pct));
+  return (
+    <div className="rounded-xl border border-line bg-surface p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-sm font-medium text-ink">{title}</span>
+        <span className="text-xs text-muted">{Math.round(pct)}%</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-lg">{startEmoji}</span>
+        <div className="relative h-2 flex-1 rounded-full bg-white/10">
+          <div className="absolute left-0 top-0 h-2 rounded-full bg-accent" style={{ width: `${clamped}%` }} />
+          <div
+            className="absolute -top-2 -translate-x-1/2 text-sm transition-all"
+            style={{ left: `${clamped}%` }}
+          >
+            ✈
+          </div>
+        </div>
+        <span className="text-lg">{endEmoji}</span>
+      </div>
+      <div className="mt-2 text-xs text-muted">{detail}</div>
+    </div>
+  );
+}
+
 function airportFilter(code: string): MapFilter {
   const up = code.toUpperCase();
   return {
@@ -164,12 +207,36 @@ export function PassportTab({
       </div>
 
       <div>
-        <SectionLabel>Impact</SectionLabel>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Times around Earth" value={stats.lapsAroundEarth} sub="🌍" />
-          <Stat label="Of the way to the Moon" value={`${stats.percentToMoon}%`} sub="🌙" />
-          <Stat label="Est. CO₂" value={`${stats.co2Kg.toLocaleString()} kg`} sub="economy est." />
-          <Stat label="Longest single flight" value={stats.longestDurationMinutes ? formatDuration(stats.longestDurationMinutes) : "—"} />
+        <SectionLabel>Your journey</SectionLabel>
+        <div className="space-y-3">
+          <JourneyMeter
+            startEmoji="🌍"
+            endEmoji="🌙"
+            pct={stats.percentToMoon}
+            title="Toward the Moon"
+            detail={
+              stats.percentToMoon >= 100
+                ? `You've flown past the Moon — ${(stats.kmAllTime / MOON_KM).toFixed(1)}× the 384,400 km trip! 🚀`
+                : `${formatDistanceValue(stats.kmAllTime, units)} ${u} flown — ${stats.percentToMoon}% of the 384,400 km to the Moon.`
+            }
+          />
+          <JourneyMeter
+            startEmoji="🛫"
+            endEmoji="🌍"
+            pct={(stats.lapsAroundEarth % 1) * 100}
+            title="Around the world"
+            detail={
+              stats.lapsAroundEarth >= 1
+                ? `${stats.lapsAroundEarth}× around the Earth (equator ≈ 40,075 km) — ${Math.round((stats.lapsAroundEarth % 1) * 100)}% into lap ${Math.floor(stats.lapsAroundEarth) + 1}.`
+                : `${Math.round(stats.lapsAroundEarth * 100)}% of the way around the equator (${EQUATOR_KM.toLocaleString()} km).`
+            }
+          />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat label="Est. CO₂" value={`${stats.co2Kg.toLocaleString()} kg`} sub="economy est." />
+            <Stat label="Trees to offset" value={`${Math.max(0, Math.round(stats.co2Kg / 21)).toLocaleString()} 🌳`} sub="~1yr each" />
+            <Stat label="Longest flight" value={stats.longestDurationMinutes ? formatDuration(stats.longestDurationMinutes) : "—"} />
+            <Stat label="Times around Earth" value={stats.lapsAroundEarth} sub="🌍" />
+          </div>
         </div>
       </div>
 

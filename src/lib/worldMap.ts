@@ -56,3 +56,17 @@ export function getLandPath(): string {
   cachedLandPath = geometries.map(geometryToPath).join(" ");
   return cachedLandPath;
 }
+
+let cachedLandFeature: Feature<Geometry> | null = null;
+
+/** The land mass as a single GeoJSON Feature (MultiPolygon), for rendering
+ * with d3-geo's geoPath on the interactive globe (which needs real GeoJSON
+ * geometry, not the pre-projected SVG path used by the flat map). */
+export function getLandFeature(): Feature<Geometry> {
+  if (cachedLandFeature) return cachedLandFeature;
+  const topology = landTopology as unknown as Topology;
+  const landObject = topology.objects.land as GeometryCollection;
+  const result = feature(topology, landObject);
+  cachedLandFeature = (result.type === "FeatureCollection" ? result.features[0] : result) as Feature<Geometry>;
+  return cachedLandFeature;
+}
