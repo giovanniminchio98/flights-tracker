@@ -86,3 +86,61 @@ export function addFlight(input: ManualFlightInput): FlightRecord {
 export function deleteFlight(id: string): void {
   writeAll(readAll().filter((f) => f.id !== id));
 }
+
+const SAMPLE_SOURCE = "sample";
+
+function iso(daysFromNow: number, hour: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  d.setHours(hour, 0, 0, 0);
+  return d.toISOString();
+}
+
+export function hasSampleFlights(): boolean {
+  return readAll().some((f) => f.sources.split(",").includes(SAMPLE_SOURCE));
+}
+
+/** Seeds two demo flights (one recent past, one upcoming within the weather
+ * window) so the map and stats can be previewed without hand-entering data.
+ * They're tagged `sample` so clearSampleFlights can remove exactly them,
+ * leaving any real flights untouched. Dates are relative to now so the
+ * upcoming one always shows an orange route + a live arrival forecast. */
+export function loadSampleFlights(): void {
+  const now = new Date().toISOString();
+  const samples: FlightRecord[] = [
+    {
+      id: computeFlightId("AZ610", iso(-28, 10)),
+      flightNumber: "AZ610",
+      airline: "ITA Airways",
+      confirmationCode: "DEMO01",
+      departureAirport: "MXP",
+      arrivalAirport: "JFK",
+      departureTime: iso(-28, 10),
+      arrivalTime: iso(-28, 18),
+      linkedEventIds: "",
+      sources: SAMPLE_SOURCE,
+      lastSyncedAt: now,
+    },
+    {
+      id: computeFlightId("BA478", iso(4, 8)),
+      flightNumber: "BA478",
+      airline: "British Airways",
+      confirmationCode: "DEMO02",
+      departureAirport: "LHR",
+      arrivalAirport: "BCN",
+      departureTime: iso(4, 8),
+      arrivalTime: iso(4, 11),
+      linkedEventIds: "",
+      sources: SAMPLE_SOURCE,
+      lastSyncedAt: now,
+    },
+  ];
+
+  const existing = readAll().filter((f) => !f.sources.split(",").includes(SAMPLE_SOURCE));
+  const existingIds = new Set(existing.map((f) => f.id));
+  writeAll([...existing, ...samples.filter((s) => !existingIds.has(s.id))]);
+}
+
+export function clearSampleFlights(): void {
+  writeAll(readAll().filter((f) => !f.sources.split(",").includes(SAMPLE_SOURCE)));
+}

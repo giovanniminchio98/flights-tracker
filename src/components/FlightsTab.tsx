@@ -7,6 +7,7 @@ const SOURCE_BADGES: Record<string, { label: string; className: string }> = {
   google: { label: "Google", className: "bg-blue-50 text-blue-700 border-blue-200" },
   icloud: { label: "iCloud", className: "bg-slate-100 text-slate-600 border-slate-300" },
   manual: { label: "Manual", className: "bg-amber-50 text-amber-700 border-amber-200" },
+  sample: { label: "Sample", className: "bg-violet-50 text-violet-700 border-violet-200" },
 };
 
 function FlightRow({
@@ -83,12 +84,14 @@ export function FlightsTab({
   onSelect,
   onDelete,
   onAdd,
+  onLoadSamples,
 }: {
   flights: FlightRecord[];
   highlightedId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onAdd: () => void;
+  onLoadSamples: () => void;
 }) {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
@@ -113,12 +116,17 @@ export function FlightsTab({
       <div className="py-16 text-center">
         <div className="text-3xl">🛫</div>
         <div className="mt-3 text-sm text-slate-500">No flights yet.</div>
-        <button
-          onClick={onAdd}
-          className="mt-4 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          Add your first flight
-        </button>
+        <div className="mt-4 flex flex-col items-center gap-2">
+          <button
+            onClick={onAdd}
+            className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            Add your first flight
+          </button>
+          <button onClick={onLoadSamples} className="text-xs text-slate-500 underline hover:text-ink">
+            or load 2 sample flights to explore
+          </button>
+        </div>
       </div>
     );
   }
