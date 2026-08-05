@@ -23,6 +23,13 @@ export interface ArrivalWeather {
   isForecast: boolean; // false = historical
 }
 
+/** In-memory cache keyed by airport+arrival time. The UI re-renders on every
+ * countdown tick, so without this a card would re-request the same forecast
+ * indefinitely (and get rate-limited). Entries hold the in-flight promise too,
+ * so concurrent cards for the same route share one request. */
+const CACHE_TTL_MS = 30 * 60 * 1000; // forecasts update hourly at best
+const cache = new Map<string, { at: number; value: Promise<ArrivalWeather | null> }>();
+
 // WMO weather-interpretation codes → short label + emoji.
 function describe(code: number): { label: string; emoji: string } {
   if (code === 0) return { label: "Clear", emoji: "☀️" };
@@ -57,11 +64,29 @@ function pickHourIndex(times: number[], targetMs: number): number {
   return best;
 }
 
+/** Cached entry point. Repeated calls for the same airport+arrival within the
+ * TTL reuse one request, so a card that re-renders on every countdown tick
+ * settles on a value instead of perpetually reloading. */
+export function getArrivalWeather(arrivalCode: string, arrivalIso: string): Promise<ArrivalWeather | null> {
+  const key = `${arrivalCode}|${arrivalIso}`;
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value;
+
+  const value = fetchArrivalWeather(arrivalCode, arrivalIso);
+  cache.set(key, { at: Date.now(), value });
+  // Don't cache failures — let the next mount retry rather than pinning a null
+  // for half an hour because the network blipped once.
+  value.then((v) => {
+    if (v == null) cache.delete(key);
+  });
+  return value;
+}
+
 /** Fetches the weather at an arrival airport around the arrival time.
  * Returns null when the airport is unknown or the date is outside the
- * usable window (further than ~7 days ahead). Never throws — a failed
- * fetch just yields null so the UI degrades gracefully. */
-export async function getArrivalWeather(
+ * usable window. Never throws — a failed fetch just yields null so the UI
+ * degrades gracefully. */
+async function fetchArrivalWeather(
   arrivalCode: string,
   arrivalIso: string
 ): Promise<ArrivalWeather | null> {

@@ -139,7 +139,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
   tomorrow.setDate(tomorrow.getDate() + 1);
 
   return (
-    <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 px-4">
+    <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/70 px-4">
       <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-lg">
         {step === "number" && (
           <>
@@ -198,7 +198,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
 
         {step === "date" && (
           <>
-            <button onClick={() => setStep("number")} className="mb-2 text-xs text-muted hover:text-slate-300">
+            <button onClick={() => setStep("number")} className="mb-2 text-xs text-muted hover:text-ink">
               ← Change flight number
             </button>
             <h2 className="mb-1 text-lg font-semibold text-ink">
@@ -245,10 +245,10 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
               </div>
             </label>
 
-            {error && <div className="mt-3 text-sm text-red-400">{error}</div>}
+            {error && <div className="mt-3 text-sm text-neon-red">{error}</div>}
 
             <div className="mt-5 flex items-center justify-between">
-              <button onClick={switchToManualDetails} className="text-xs text-muted hover:text-slate-300">
+              <button onClick={switchToManualDetails} className="text-xs text-muted hover:text-ink">
                 Not right, or need exact times? Enter manually
               </button>
               <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-muted hover:bg-white/10">
@@ -260,7 +260,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
 
         {step === "lookup" && (
           <>
-            <button onClick={() => setStep("number")} className="mb-2 text-xs text-muted hover:text-slate-300">
+            <button onClick={() => setStep("number")} className="mb-2 text-xs text-muted hover:text-ink">
               ← Change flight number
             </button>
             <h2 className="mb-1 text-lg font-semibold text-ink">
@@ -274,7 +274,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
                   entering them by hand.
                 </p>
                 <div className="mt-5 flex items-center justify-between">
-                  <button onClick={switchToManualDetails} className="text-xs text-muted hover:text-slate-300">
+                  <button onClick={switchToManualDetails} className="text-xs text-muted hover:text-ink">
                     Skip, enter manually
                   </button>
                   <div className="flex gap-2">
@@ -304,7 +304,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
                   </div>
                 </div>
                 <div className="mt-5 flex items-center justify-between">
-                  <button onClick={switchToManualDetails} className="text-xs text-muted hover:text-slate-300">
+                  <button onClick={switchToManualDetails} className="text-xs text-muted hover:text-ink">
                     Not right? Edit manually
                   </button>
                   <div className="flex gap-2">
@@ -366,10 +366,10 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
                   </div>
                 </label>
 
-                {lookupError && <div className="mt-3 text-sm text-red-400">{lookupError}</div>}
+                {lookupError && <div className="mt-3 text-sm text-neon-red">{lookupError}</div>}
 
                 <div className="mt-5 flex items-center justify-between">
-                  <button onClick={switchToManualDetails} className="text-xs text-muted hover:text-slate-300">
+                  <button onClick={switchToManualDetails} className="text-xs text-muted hover:text-ink">
                     Enter manually instead
                   </button>
                   <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-muted hover:bg-white/10">
@@ -385,7 +385,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
           <>
             <button
               onClick={() => setStep(historicalTimes ? "date" : "lookup")}
-              className="mb-2 text-xs text-muted hover:text-slate-300"
+              className="mb-2 text-xs text-muted hover:text-ink"
             >
               ← Back
             </button>
@@ -446,7 +446,7 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
               </label>
             </div>
 
-            {error && <div className="mt-3 text-sm text-red-400">{error}</div>}
+            {error && <div className="mt-3 text-sm text-neon-red">{error}</div>}
 
             <div className="mt-5 flex justify-end gap-2">
               <button onClick={onClose} className="rounded-lg px-4 py-2 text-sm text-muted hover:bg-white/10">

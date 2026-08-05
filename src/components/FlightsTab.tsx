@@ -6,7 +6,7 @@ import { getCountdown, formatRelative } from "@/lib/countdown";
 import { useNow } from "@/lib/useNow";
 
 function toneClass(kind: string): string {
-  if (kind === "soon" || kind === "inflight") return "text-emerald-400";
+  if (kind === "soon" || kind === "inflight") return "text-neon-green";
   return "text-ink";
 }
 
@@ -32,7 +32,7 @@ function UpcomingRow({
   const cd = getCountdown(flight.departureTime, flight.arrivalTime, now);
 
   return (
-    <div className={`rounded-xl border bg-surface transition ${expanded ? "border-emerald-500/50" : "border-line"}`}>
+    <div className={`rounded-xl border bg-surface transition ${expanded ? "border-neon-green/50" : "border-line"}`}>
       <button onClick={onSelect} className="flex w-full items-center gap-3 p-3 text-left">
         <div className="w-14 shrink-0 text-center">
           <div className={`text-3xl font-bold leading-none ${toneClass(cd.kind)}`}>{cd.big}</div>
@@ -63,7 +63,7 @@ function UpcomingRow({
       {expanded && (
         <div className="px-3 pb-3">
           <FlightDetail flight={flight} />
-          <button onClick={onDelete} className="mt-3 text-xs text-muted hover:text-red-400">
+          <button onClick={onDelete} className="mt-3 text-xs text-muted hover:text-neon-red">
             Delete flight
           </button>
         </div>
@@ -96,7 +96,9 @@ function PastRow({
         className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left ${expanded ? "" : "opacity-70 hover:opacity-100"}`}
       >
         <div className="flex min-w-0 items-center gap-3">
-          <span className="w-16 shrink-0 font-mono text-[11px] text-muted">{formatDateShort(flight.departureTime)}</span>
+          <span className="w-20 shrink-0 whitespace-nowrap font-mono text-[11px] text-muted">
+            {formatDateShort(flight.departureTime)}
+          </span>
           <span className="shrink-0 text-sm font-medium text-ink">
             {flight.departureAirport} <span className="text-muted">→</span> {flight.arrivalAirport}
           </span>
@@ -110,7 +112,7 @@ function PastRow({
       {expanded && (
         <div className="px-3 pb-3">
           <FlightDetail flight={flight} />
-          <button onClick={onDelete} className="mt-3 text-xs text-muted hover:text-red-400">
+          <button onClick={onDelete} className="mt-3 text-xs text-muted hover:text-neon-red">
             Delete flight
           </button>
         </div>

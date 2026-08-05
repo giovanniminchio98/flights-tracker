@@ -6,11 +6,35 @@ import { useUnits } from "@/lib/UnitsContext";
 import { formatDistanceValue, unitLabel, countryFlag } from "@/lib/units";
 import { formatDuration } from "@/lib/dateUtils";
 import { getAirport } from "@/lib/airports";
+import { PAST_COLOR, UPCOMING_COLOR } from "@/lib/theme";
 
-function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+/** Neon accents for stat numbers. Used sparingly — one hue per theme of stat
+ * so the grid reads as grouped rather than as a rainbow. */
+export type Tone = "ink" | "green" | "violet" | "yellow" | "red" | "cyan";
+
+const TONE_CLASS: Record<Tone, string> = {
+  ink: "text-ink",
+  green: "text-neon-green",
+  violet: "text-neon-violet",
+  yellow: "text-neon-yellow",
+  red: "text-neon-red",
+  cyan: "text-neon-cyan",
+};
+
+function Stat({
+  label,
+  value,
+  sub,
+  tone = "ink",
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  tone?: Tone;
+}) {
   return (
     <div className="rounded-xl border border-line bg-surface p-4 text-center shadow-sm">
-      <div className="text-2xl font-semibold text-ink">{value}</div>
+      <div className={`text-2xl font-semibold ${TONE_CLASS[tone]}`}>{value}</div>
       <div className="text-xs text-muted">{label}</div>
       {sub && <div className="text-[11px] text-muted">{sub}</div>}
     </div>
@@ -40,7 +64,7 @@ function ClickableRecord({
       disabled={!onClick}
       className={`rounded-xl border bg-surface p-4 text-left shadow-sm transition ${
         active ? "border-ink ring-1 ring-ink" : "border-line"
-      } ${onClick ? "hover:border-slate-400" : "cursor-default"}`}
+      } ${onClick ? "hover:border-neon-violet" : "cursor-default"}`}
     >
       <div className="text-xs text-muted">{title}</div>
       <div className="mt-1 text-lg font-semibold text-ink">{value}</div>
@@ -78,7 +102,7 @@ function BarList({
                 className="h-3.5 rounded-full"
                 style={{
                   width: `${d.count === 0 ? 0 : Math.max(6, (d.count / max) * 100)}%`,
-                  backgroundColor: activeLabel === d.label ? "#eb6834" : "#2a78d6",
+                  backgroundColor: activeLabel === d.label ? UPCOMING_COLOR : PAST_COLOR,
                 }}
               />
             </div>
@@ -234,14 +258,14 @@ export function PassportTab({
       <div>
         <SectionLabel>Overview</SectionLabel>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Total flights" value={stats.totalFlights} />
+          <Stat tone="violet" label="Total flights" value={stats.totalFlights} />
           {year === "all" ? (
-            <Stat label="This year" value={stats.flightsThisYear} />
+            <Stat tone="violet" label="This year" value={stats.flightsThisYear} />
           ) : (
-            <Stat label="Past" value={stats.pastCount} />
+            <Stat tone="ink" label="Past" value={stats.pastCount} />
           )}
-          <Stat label="Upcoming" value={stats.upcomingCount} />
-          <Stat label="Unique routes" value={stats.uniqueRoutes} />
+          <Stat tone="green" label="Upcoming" value={stats.upcomingCount} />
+          <Stat tone="cyan" label="Unique routes" value={stats.uniqueRoutes} />
         </div>
       </div>
 
@@ -250,20 +274,20 @@ export function PassportTab({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {year === "all" ? (
             <>
-              <Stat label={`Distance this year (${u})`} value={formatDistanceValue(stats.kmThisYear, units)} />
-              <Stat label={`Distance all-time (${u})`} value={formatDistanceValue(stats.kmAllTime, units)} />
+              <Stat tone="cyan" label={`Distance this year (${u})`} value={formatDistanceValue(stats.kmThisYear, units)} />
+              <Stat tone="cyan" label={`Distance all-time (${u})`} value={formatDistanceValue(stats.kmAllTime, units)} />
             </>
           ) : (
             <>
-              <Stat label={`Distance in ${year} (${u})`} value={formatDistanceValue(stats.kmAllTime, units)} />
+              <Stat tone="cyan" label={`Distance in ${year} (${u})`} value={formatDistanceValue(stats.kmAllTime, units)} />
               <Stat
                 label="Longest single flight"
                 value={stats.longestDurationMinutes ? formatDuration(stats.longestDurationMinutes) : "—"}
               />
             </>
           )}
-          <Stat label="Time in the air" value={formatDuration(stats.totalFlightMinutes)} />
-          <Stat label="Avg flight" value={stats.avgFlightMinutes ? formatDuration(stats.avgFlightMinutes) : "—"} />
+          <Stat tone="yellow" label="Time in the air" value={formatDuration(stats.totalFlightMinutes)} />
+          <Stat tone="yellow" label="Avg flight" value={stats.avgFlightMinutes ? formatDuration(stats.avgFlightMinutes) : "—"} />
         </div>
       </div>
 
@@ -293,10 +317,10 @@ export function PassportTab({
             }
           />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Est. CO₂" value={`${stats.co2Kg.toLocaleString()} kg`} sub="economy est." />
-            <Stat label="Trees to offset" value={`${Math.max(0, Math.round(stats.co2Kg / 21)).toLocaleString()} 🌳`} sub="~1yr each" />
-            <Stat label="Longest flight" value={stats.longestDurationMinutes ? formatDuration(stats.longestDurationMinutes) : "—"} />
-            <Stat label="Times around Earth" value={stats.lapsAroundEarth} sub="🌍" />
+            <Stat tone="red" label="Est. CO₂" value={`${stats.co2Kg.toLocaleString()} kg`} sub="economy est." />
+            <Stat tone="green" label="Trees to offset" value={`${Math.max(0, Math.round(stats.co2Kg / 21)).toLocaleString()} 🌳`} sub="~1yr each" />
+            <Stat tone="yellow" label="Longest flight" value={stats.longestDurationMinutes ? formatDuration(stats.longestDurationMinutes) : "—"} />
+            <Stat tone="cyan" label="Times around Earth" value={stats.lapsAroundEarth} sub="🌍" />
           </div>
         </div>
       </div>
@@ -304,14 +328,14 @@ export function PassportTab({
       <div>
         <SectionLabel>Reach</SectionLabel>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Countries" value={stats.countriesVisited} />
-          <Stat label="Continents" value={stats.continentsVisited} />
-          <Stat label="Airports" value={stats.airportsVisited} />
-          <Stat label="Airlines" value={stats.airlinesFlown} />
+          <Stat tone="green" label="Countries" value={stats.countriesVisited} />
+          <Stat tone="cyan" label="Continents" value={stats.continentsVisited} />
+          <Stat tone="violet" label="Airports" value={stats.airportsVisited} />
+          <Stat tone="yellow" label="Airlines" value={stats.airlinesFlown} />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat label="Domestic" value={stats.domesticFlights} />
-          <Stat label="International" value={stats.internationalFlights} />
+          <Stat tone="cyan" label="Domestic" value={stats.domesticFlights} />
+          <Stat tone="violet" label="International" value={stats.internationalFlights} />
         </div>
       </div>
 
@@ -376,7 +400,7 @@ export function PassportTab({
                 key={a.code}
                 onClick={() => toggle(airportFilter(a.code))}
                 className={`rounded-full px-3 py-1 text-sm transition ${
-                  activeFilterLabel === `Flights via ${a.code}` ? "bg-accent text-white" : "bg-white/10 text-slate-200 hover:bg-white/20"
+                  activeFilterLabel === `Flights via ${a.code}` ? "bg-accent text-white" : "bg-white/10 text-ink hover:bg-white/20"
                 }`}
               >
                 {a.code} <span className="opacity-60">×{a.count}</span>
@@ -397,7 +421,7 @@ export function PassportTab({
                 className={`rounded-full px-3 py-1 text-sm transition ${
                   activeFilterLabel === `Flights in ${countryFlag(c.label)} ${c.label}`
                     ? "bg-accent text-white"
-                    : "bg-white/10 text-slate-200 hover:bg-white/20"
+                    : "bg-white/10 text-ink hover:bg-white/20"
                 }`}
               >
                 {countryFlag(c.label)} {c.label} <span className="opacity-60">×{c.count}</span>

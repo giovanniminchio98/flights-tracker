@@ -12,8 +12,7 @@ import { getAirport, isKnownAirport } from "@/lib/airports";
 import { getLandFeature } from "@/lib/worldMap";
 import { formatDateShort } from "@/lib/dateUtils";
 
-const PAST = "#2a78d6";
-const UPCOMING = "#eb6834";
+import { PAST_COLOR as PAST, UPCOMING_COLOR as UPCOMING, MAP_OCEAN, MAP_LAND, COLORS } from "@/lib/theme";
 
 type FilterMode = "all" | "upcoming" | "past";
 
@@ -143,7 +142,7 @@ export function GlobeView({
       // Ocean sphere
       ctx.beginPath();
       path({ type: "Sphere" } as never);
-      ctx.fillStyle = "#0b1626";
+      ctx.fillStyle = MAP_OCEAN;
       ctx.fill();
 
       // Graticule
@@ -156,7 +155,7 @@ export function GlobeView({
       // Land
       ctx.beginPath();
       path(land);
-      ctx.fillStyle = "#22304a";
+      ctx.fillStyle = MAP_LAND;
       ctx.fill();
 
       // Sphere outline
@@ -210,13 +209,13 @@ export function GlobeView({
         if (!xy) continue;
         ctx.beginPath();
         ctx.arc(xy[0], xy[1], 2.5, 0, 2 * Math.PI);
-        ctx.fillStyle = "#dbe4f2";
+        ctx.fillStyle = COLORS.ink;
         ctx.fill();
         if (showCodes) {
           ctx.lineWidth = 3;
           ctx.strokeStyle = "rgba(10,17,32,0.85)";
           ctx.strokeText(code, xy[0] + 5, xy[1]);
-          ctx.fillStyle = "#cbd5e1";
+          ctx.fillStyle = COLORS.muted;
           ctx.fillText(code, xy[0] + 5, xy[1]);
         }
       }
@@ -247,10 +246,10 @@ export function GlobeView({
           roundRect(ctx, boxX, boxY, boxW, boxH, 6);
           ctx.fill();
 
-          ctx.fillStyle = "#e7ecf6";
+          ctx.fillStyle = COLORS.ink;
           ctx.font = "600 11px ui-monospace, Menlo, monospace";
           ctx.fillText(arc.routeLabel, x, boxY + 15);
-          ctx.fillStyle = "#93a1bd";
+          ctx.fillStyle = COLORS.muted;
           ctx.font = "10px ui-monospace, Menlo, monospace";
           ctx.fillText(arc.dateLabel, x, boxY + 27);
         }
@@ -405,7 +404,7 @@ export function GlobeView({
           </div>
         )}
         <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-surface/80 px-3 py-1 text-xs text-muted">
-          <span className="text-[#eb6834]">●</span> upcoming <span className="ml-2 text-[#2a78d6]">●</span> past
+          <span style={{ color: UPCOMING }}>●</span> upcoming <span className="ml-2" style={{ color: PAST }}>●</span> past
         </div>
       </div>
     </div>

@@ -11,7 +11,7 @@ export function ApiKeySettings({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/30 px-4">
+    <div className="fixed inset-0 z-10 flex items-center justify-center bg-black/70 px-4">
       <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-lg">
         <h2 className="mb-1 text-lg font-semibold text-ink">Flight lookup API</h2>
         <p className="mb-4 text-sm text-muted">

@@ -49,7 +49,7 @@ function Leg({
         <span className="font-medium text-ink">{code}</span>
         {city && <span>· {city}</span>}
       </div>
-      <div className={`mt-0.5 flex items-baseline gap-1.5 ${green ? "text-emerald-400" : "text-ink"}`}>
+      <div className={`mt-0.5 flex items-baseline gap-1.5 ${green ? "text-neon-green" : "text-ink"}`}>
         <span className="text-2xl font-bold leading-none">
           {time}
           {nextDay && <sup className="ml-0.5 text-xs text-muted">+1</sup>}
@@ -58,7 +58,7 @@ function Leg({
       </div>
       {yourTime && <div className="mt-0.5 text-[11px] text-muted">{yourTime} your time</div>}
       <div className="mt-1 text-xs text-muted">
-        {relLabel} <span className={green ? "text-emerald-400" : "text-ink"}>{relValue}</span>
+        {relLabel} <span className={green ? "text-neon-green" : "text-ink"}>{relValue}</span>
       </div>
     </div>
   );
@@ -90,10 +90,14 @@ export function FlightDetail({ flight }: { flight: FlightRecord }) {
   const depRel = formatRelative(flight.departureTime, now);
   const arrRel = formatRelative(flight.arrivalTime, now);
 
+  // Depend only on the two primitive inputs. `arrInfo` used to be in here, but
+  // getAirport() builds a fresh object every call, so its identity changed on
+  // every countdown tick — the effect re-ran every 20s, blanked the weather and
+  // refetched, which is why it never settled.
+  const hasArrivalAirport = arrInfo != null;
   useEffect(() => {
+    if (!hasArrivalAirport) return;
     let cancelled = false;
-    setWeather(null);
-    if (!arrInfo) return;
     setWeatherLoading(true);
     getArrivalWeather(flight.arrivalAirport, flight.arrivalTime)
       .then((w) => {
@@ -105,7 +109,7 @@ export function FlightDetail({ flight }: { flight: FlightRecord }) {
     return () => {
       cancelled = true;
     };
-  }, [flight.arrivalAirport, flight.arrivalTime, arrInfo]);
+  }, [flight.arrivalAirport, flight.arrivalTime, hasArrivalAirport]);
 
   return (
     <div className="mt-3 space-y-3 border-t border-line pt-3">
@@ -160,7 +164,7 @@ export function FlightDetail({ flight }: { flight: FlightRecord }) {
           {weatherLoading ? (
             <div className="text-muted">Checking…</div>
           ) : weather ? (
-            <div className="text-slate-200">
+            <div className="text-ink">
               {weather.emoji} {weather.label}, {weather.tempC}°C{" "}
               <span className="text-muted">{weather.isForecast ? "(forecast)" : "(recorded)"}</span>
             </div>

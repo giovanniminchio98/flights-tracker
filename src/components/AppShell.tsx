@@ -88,8 +88,10 @@ export function AppShell() {
       {/* Header */}
       <header className="z-20 flex shrink-0 items-center justify-between border-b border-line bg-surface px-4 py-2.5 text-ink">
         <span className="flex items-center gap-2 text-lg font-bold tracking-tight">
-          <span className="text-accent-soft">✈</span>
-          <span>Skylog</span>
+          <span className="text-neon-violet drop-shadow-[0_0_6px_rgba(177,108,255,0.6)]">✈</span>
+          <span>
+            Sky<span className="text-neon-violet">log</span>
+          </span>
         </span>
         <div className="flex items-center gap-2">
           <button
@@ -108,7 +110,7 @@ export function AppShell() {
               👤
             </button>
             {showAccountMenu && (
-              <div className="absolute right-0 top-10 z-30 w-56 rounded-xl border border-line bg-surface p-2 text-sm text-slate-200 shadow-lg">
+              <div className="absolute right-0 top-10 z-30 w-56 rounded-xl border border-line bg-surface p-2 text-sm text-ink shadow-lg">
                 <div className="px-2 py-1.5 text-xs text-muted">Not signed in</div>
                 <div className="px-2 py-1.5 text-xs text-muted">
                   iCloud &amp; Google sign-in are coming soon. For now, flights are stored in this browser.
@@ -125,7 +127,7 @@ export function AppShell() {
                 {samplesPresent ? (
                   <button
                     onClick={handleClearSamples}
-                    className="w-full rounded-lg px-2 py-1.5 text-left text-red-400 hover:bg-white/5"
+                    className="w-full rounded-lg px-2 py-1.5 text-left text-neon-red hover:bg-white/5"
                   >
                     Clear sample flights
                   </button>
@@ -161,7 +163,7 @@ export function AppShell() {
         {tab === "passport" && mapFilter && (
           <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-accent/90 px-3 py-1 text-xs text-white">
             <span>{mapFilter.label}</span>
-            <button onClick={() => setMapFilter(null)} className="text-slate-300 hover:text-white">
+            <button onClick={() => setMapFilter(null)} className="text-ink hover:text-white">
               ✕
             </button>
           </div>
@@ -181,8 +183,10 @@ export function AppShell() {
           <button
             key={t}
             onClick={() => switchTab(t)}
-            className={`flex-1 py-2.5 text-sm font-medium capitalize transition ${
-              tab === t ? "border-b-2 border-ink text-ink" : "text-muted hover:text-slate-300"
+            className={`flex-1 py-2.5 text-sm font-medium uppercase tracking-widest transition ${
+              tab === t
+                ? "border-b-2 border-neon-violet text-neon-violet drop-shadow-[0_0_6px_rgba(177,108,255,0.35)]"
+                : "text-muted hover:text-ink"
             }`}
           >
             {t === "flights" ? "Flights" : "Passport"}
@@ -211,7 +215,7 @@ export function AppShell() {
       {/* Floating add button */}
       <button
         onClick={() => setShowAddForm(true)}
-        className="fixed bottom-5 right-5 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-white shadow-lg hover:bg-accent-soft"
+        className="fixed bottom-5 right-5 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-neon-violet text-2xl font-light text-paper shadow-[0_0_20px_-2px_rgba(177,108,255,0.7)] transition hover:brightness-110"
         title="Add flight"
       >
         +

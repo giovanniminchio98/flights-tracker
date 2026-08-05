@@ -3,9 +3,13 @@ import type { FlightRecord } from "@/types";
 import { getAirport, isKnownAirport } from "@/lib/airports";
 import { getLandPath, project, MAP_WIDTH, MAP_HEIGHT } from "@/lib/worldMap";
 import { formatDateTime } from "@/lib/dateUtils";
-
-const PAST_COLOR = "#2a78d6"; // categorical slot 1 (blue) — validated CVD-safe with slot 2
-const UPCOMING_COLOR = "#eb6834"; // categorical slot 2 (orange)
+import {
+  PAST_COLOR,
+  UPCOMING_COLOR,
+  MAP_OCEAN,
+  MAP_LAND,
+  AIRPORT_FILL,
+} from "@/lib/theme";
 
 interface RouteTooltip {
   type: "route";
@@ -187,6 +191,10 @@ export function WorldMap({
   const viewRef = useRef(view);
   viewRef.current = view;
 
+  // Set while a touch/mouse gesture is in progress so the focus animation
+  // doesn't fight the user's fingers.
+  const gestureRef = useRef(false);
+
   useEffect(() => {
     const target = focus ?? { s: 1, tx: 0, ty: 0 };
     const start = { ...viewRef.current };
@@ -194,6 +202,7 @@ export function WorldMap({
     const dur = 600;
     let raf = 0;
     const tick = (t: number) => {
+      if (gestureRef.current) return; // user took over mid-animation
       const p = Math.min(1, (t - t0) / dur);
       const e = 1 - Math.pow(1 - p, 3);
       setView({
@@ -206,6 +215,122 @@ export function WorldMap({
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [focus]);
+
+  // ---- Manual pan / pinch-zoom -------------------------------------------
+  // Pointer Events cover mouse, touch and pen with one code path, so pinch
+  // works on phones and wheel/drag works on desktop.
+  const MIN_SCALE = 1;
+  const MAX_SCALE = 8;
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const pinchRef = useRef<{ dist: number; mid: { x: number; y: number } } | null>(null);
+  // Distinguishes a tap (select a flight) from a drag (pan the map).
+  const movedRef = useRef(false);
+
+  /** Clamp so the map can never be dragged away from the viewport. */
+  function clampView(v: { s: number; tx: number; ty: number }) {
+    const s = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.s));
+    const minTx = -(s - 1) * MAP_WIDTH;
+    const minTy = -(s - 1) * MAP_HEIGHT;
+    return {
+      s,
+      tx: Math.min(0, Math.max(minTx, v.tx)),
+      ty: Math.min(0, Math.max(minTy, v.ty)),
+    };
+  }
+
+  /** Client coords → viewBox coords, accounting for preserveAspectRatio slice
+   * (the viewBox is scaled to cover the box, then centred). */
+  function toViewBox(clientX: number, clientY: number) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0, k: 1 };
+    const k = Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
+    const offX = (rect.width - MAP_WIDTH * k) / 2;
+    const offY = (rect.height - MAP_HEIGHT * k) / 2;
+    return { x: (clientX - rect.left - offX) / k, y: (clientY - rect.top - offY) / k, k };
+  }
+
+  /** Zoom by `factor` while keeping the point under (clientX, clientY) fixed. */
+  function zoomAt(factor: number, clientX: number, clientY: number) {
+    const { x, y } = toViewBox(clientX, clientY);
+    setView((v) => {
+      const s = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.s * factor));
+      // Scene point under the cursor must map to the same viewBox point.
+      const sceneX = (x - v.tx) / v.s;
+      const sceneY = (y - v.ty) / v.s;
+      return clampView({ s, tx: x - s * sceneX, ty: y - s * sceneY });
+    });
+  }
+
+  function handlePointerDown(e: React.PointerEvent<SVGSVGElement>) {
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    movedRef.current = false;
+    gestureRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (pointersRef.current.size === 2) {
+      const [a, b] = [...pointersRef.current.values()];
+      pinchRef.current = {
+        dist: Math.hypot(a.x - b.x, a.y - b.y),
+        mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+      };
+    }
+  }
+
+  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
+    const pts = pointersRef.current;
+    const prev = pts.get(e.pointerId);
+    if (!prev) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pts.size === 2 && pinchRef.current) {
+      // Pinch: scale by the change in finger separation, and pan by the
+      // change in their midpoint so the gesture tracks the fingers.
+      const [a, b] = [...pts.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      const start = pinchRef.current;
+      if (start.dist > 0) {
+        movedRef.current = true;
+        const { k } = toViewBox(mid.x, mid.y);
+        const dx = (mid.x - start.mid.x) / k;
+        const dy = (mid.y - start.mid.y) / k;
+        const { x, y } = toViewBox(mid.x, mid.y);
+        const factor = dist / start.dist;
+        setView((v) => {
+          const s = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.s * factor));
+          const sceneX = (x - v.tx) / v.s;
+          const sceneY = (y - v.ty) / v.s;
+          return clampView({ s, tx: x - s * sceneX + dx, ty: y - s * sceneY + dy });
+        });
+      }
+      pinchRef.current = { dist, mid };
+      return;
+    }
+
+    if (pts.size === 1) {
+      const dxClient = e.clientX - prev.x;
+      const dyClient = e.clientY - prev.y;
+      if (Math.abs(dxClient) > 2 || Math.abs(dyClient) > 2) movedRef.current = true;
+      const { k } = toViewBox(e.clientX, e.clientY);
+      setView((v) => clampView({ ...v, tx: v.tx + dxClient / k, ty: v.ty + dyClient / k }));
+    }
+  }
+
+  function endPointer(e: React.PointerEvent<SVGSVGElement>) {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchRef.current = null;
+    if (pointersRef.current.size === 0) gestureRef.current = false;
+  }
+
+  function handleWheel(e: React.WheelEvent<SVGSVGElement>) {
+    // Zoom toward the cursor; trackpad pinch arrives here as ctrlKey+wheel.
+    zoomAt(Math.exp(-e.deltaY * 0.002), e.clientX, e.clientY);
+  }
+
+  const zoomed = view.s > 1.01;
+  function resetView() {
+    gestureRef.current = false;
+    setView({ s: 1, tx: 0, ty: 0 });
+  }
 
   const sceneTransform = `translate(${view.tx.toFixed(2)} ${view.ty.toFixed(2)}) scale(${view.s.toFixed(4)})`;
   const invScale = 1 / view.s; // keep dot/label sizes constant while zoomed
@@ -222,13 +347,21 @@ export function WorldMap({
       <svg
         viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
         preserveAspectRatio="xMidYMid slice"
-        className={`w-full ${heightClass}`}
+        className={`w-full ${heightClass} ${zoomed ? "cursor-grab" : ""}`}
+        // touch-action:none lets us handle pinch/drag ourselves instead of the
+        // browser scrolling or page-zooming over the map.
+        style={{ touchAction: "none" }}
         onMouseLeave={() => setTooltip(null)}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endPointer}
+        onPointerCancel={endPointer}
+        onWheel={handleWheel}
       >
-        <rect x={0} y={0} width={MAP_WIDTH} height={MAP_HEIGHT} fill="#0b1626" />
+        <rect x={0} y={0} width={MAP_WIDTH} height={MAP_HEIGHT} fill={MAP_OCEAN} />
 
         <g transform={sceneTransform}>
-          <path d={landPath} fill="#22304a" fillRule="evenodd" />
+          <path d={landPath} fill={MAP_LAND} fillRule="evenodd" />
 
           {/* non-highlighted routes first, highlighted route drawn last (on top) */}
           {routes
@@ -267,7 +400,10 @@ export function WorldMap({
                       strokeWidth={12}
                       vectorEffect="non-scaling-stroke"
                       style={{ pointerEvents: "stroke", cursor: onSelectFlight ? "pointer" : "default" }}
-                      onClick={() => onSelectFlight?.(flight.id)}
+                      onClick={() => {
+                        if (movedRef.current) return; // that was a pan, not a tap
+                        onSelectFlight?.(flight.id);
+                      }}
                       onMouseMove={(e) =>
                         showTooltip(e, {
                           type: "route",
@@ -292,8 +428,8 @@ export function WorldMap({
                 cx={a.point[0]}
                 cy={a.point[1]}
                 r={3.5 * invScale}
-                fill="#dbe4f2"
-                stroke="#0b1626"
+                fill={AIRPORT_FILL}
+                stroke={MAP_OCEAN}
                 strokeWidth={1.5 * invScale}
               />
               {showAirportLabels && (
@@ -302,8 +438,8 @@ export function WorldMap({
                   y={a.point[1] + 3.5 * invScale}
                   fontSize={11 * invScale}
                   fontWeight={600}
-                  fill="#e7ecf6"
-                  stroke="#0b1626"
+                  fill={AIRPORT_FILL}
+                  stroke={MAP_OCEAN}
                   strokeWidth={3 * invScale}
                   paintOrder="stroke"
                   style={{ pointerEvents: "none" }}
@@ -324,10 +460,39 @@ export function WorldMap({
         </g>
       </svg>
 
-      {hasHighlight && (
+      {/* Zoom controls — pinch works on touch, these give the same reach with
+       * a mouse and make the map's zoomability discoverable. */}
+      <div className="absolute bottom-3 right-3 z-10 flex flex-col overflow-hidden rounded-lg border border-line bg-surface/90">
         <button
-          onClick={() => onSelectFlight?.(highlightedId!)}
-          className="absolute right-3 top-3 z-10 rounded-full bg-surface/90 px-3 py-1 text-xs text-ink shadow-sm hover:bg-surface"
+          onClick={() => {
+            const r = containerRef.current?.getBoundingClientRect();
+            if (r) zoomAt(1.5, r.left + r.width / 2, r.top + r.height / 2);
+          }}
+          className="px-2.5 py-1 text-sm text-ink hover:bg-white/10"
+          title="Zoom in"
+        >
+          +
+        </button>
+        <div className="h-px bg-line" />
+        <button
+          onClick={() => {
+            const r = containerRef.current?.getBoundingClientRect();
+            if (r) zoomAt(1 / 1.5, r.left + r.width / 2, r.top + r.height / 2);
+          }}
+          className="px-2.5 py-1 text-sm text-ink hover:bg-white/10"
+          title="Zoom out"
+        >
+          −
+        </button>
+      </div>
+
+      {(hasHighlight || zoomed) && (
+        <button
+          onClick={() => {
+            resetView();
+            if (hasHighlight) onSelectFlight?.(highlightedId!);
+          }}
+          className="absolute bottom-3 left-3 z-10 rounded-full bg-surface/90 px-3 py-1 text-xs text-ink shadow-sm hover:bg-surface"
         >
           Reset view ✕
         </button>
@@ -351,7 +516,7 @@ export function WorldMap({
               <div className="font-medium">
                 {tooltip.content.from} → {tooltip.content.to}
               </div>
-              <div className="text-slate-300">
+              <div className="text-ink">
                 {tooltip.content.airline} {tooltip.content.flightNumber} · {tooltip.content.when}
               </div>
               <div className="text-muted">{tooltip.content.isPast ? "Past" : "Upcoming"}</div>
@@ -359,7 +524,7 @@ export function WorldMap({
           ) : (
             <>
               <div className="font-medium">{tooltip.content.code}</div>
-              <div className="text-slate-300">{tooltip.content.name}</div>
+              <div className="text-ink">{tooltip.content.name}</div>
               <div className="text-muted">
                 {tooltip.content.count} flight{tooltip.content.count === 1 ? "" : "s"}
               </div>
