@@ -19,6 +19,8 @@ interface RouteTooltip {
   to: string;
   when: string;
   isPast: boolean;
+  /** Times this exact directed route appears in the log. */
+  repeatCount: number;
 }
 
 interface AirportTooltip {
@@ -45,17 +47,23 @@ interface Segment {
   angle: number;
 }
 
-function arcPath([x1, y1]: [number, number], [x2, y2]: [number, number]): Segment {
+/** Extra bow, in projected px, added on top of the route's natural curve.
+ * Flights repeated on the same route get an increasing value so they fan out
+ * into separate strands instead of stacking into a single line. */
+function arcPath(
+  [x1, y1]: [number, number],
+  [x2, y2]: [number, number],
+  fanOffset = 0
+): Segment {
   const dx = x2 - x1;
   const dy = y2 - y1;
   const dist = Math.hypot(dx, dy) || 1;
-  const offset = Math.min(dist * 0.15, 60);
-  let nx = -dy / dist;
-  let ny = dx / dist;
-  if (ny > 0) {
-    nx = -nx;
-    ny = -ny;
-  }
+  const offset = Math.min(dist * 0.15, 60) + fanOffset;
+  // The normal is taken relative to the direction of travel and deliberately
+  // NOT normalised to one side: an outbound and its return therefore bow to
+  // opposite sides of the straight line instead of overlapping exactly.
+  const nx = -dy / dist;
+  const ny = dx / dist;
   const cx = (x1 + x2) / 2 + nx * offset;
   const cy = (y1 + y2) / 2 + ny * offset;
   // Quadratic midpoint (t=0.5); its tangent direction equals the chord p0→p1.
@@ -73,14 +81,18 @@ function arcPath([x1, y1]: [number, number], [x2, y2]: [number, number]): Segmen
 /** Splits a route at the antimeridian when the shorter direction crosses it,
  * so trans-Pacific routes wrap off one edge and back in the other instead of
  * drawing a straight line across the whole map. */
-function buildRoutePaths(from: [number, number], to: [number, number]): Segment[] {
+function buildRoutePaths(
+  from: [number, number],
+  to: [number, number],
+  fanOffset = 0
+): Segment[] {
   const [lon1, lat1] = from;
   const [lon2, lat2] = to;
   const delta = shortestLonDelta(lon1, lon2);
   const wrappedLon2 = lon1 + delta;
 
   if (wrappedLon2 >= -180 && wrappedLon2 <= 180) {
-    return [arcPath(project(from), project(to))];
+    return [arcPath(project(from), project(to), fanOffset)];
   }
 
   const edgeLon = wrappedLon2 > 180 ? 180 : -180;
@@ -89,9 +101,19 @@ function buildRoutePaths(from: [number, number], to: [number, number]): Segment[
   const crossLat = lat1 + (lat2 - lat1) * t;
 
   return [
-    arcPath(project(from), project([edgeLon, crossLat])),
-    arcPath(project([otherEdgeLon, crossLat]), project(to)),
+    arcPath(project(from), project([edgeLon, crossLat]), fanOffset),
+    arcPath(project([otherEdgeLon, crossLat]), project(to), fanOffset),
   ];
+}
+
+/** How far apart repeated flights on one route sit. Scaled to the route's own
+ * length so short hops fan tightly and long hauls spread proportionally, with
+ * a floor so even a very short route stays legible. */
+function fanStep(from: [number, number], to: [number, number]): number {
+  const [x1, y1] = project(from);
+  const [x2, y2] = project(to);
+  const dist = Math.hypot(x2 - x1, y2 - y1) || 1;
+  return Math.max(5, Math.min(dist * 0.055, 15));
 }
 
 export interface WorldMapProps {
@@ -121,16 +143,57 @@ export function WorldMap({
   const now = Date.now();
 
   const routes = useMemo(() => {
-    return flights
-      .filter((f) => isKnownAirport(f.departureAirport) && isKnownAirport(f.arrivalAirport))
-      .map((f) => {
-        const from = getAirport(f.departureAirport)!;
-        const to = getAirport(f.arrivalAirport)!;
-        const isPast = new Date(f.departureTime).getTime() < now;
-        const paths = buildRoutePaths([from.lon, from.lat], [to.lon, to.lat]);
-        const matchesFilter = routeFilter ? routeFilter(f) : true;
-        return { flight: f, paths, isPast, matchesFilter };
+    const flyable = flights.filter(
+      (f) => isKnownAirport(f.departureAirport) && isKnownAirport(f.arrivalAirport)
+    );
+
+    // Group by *directed* route, so BRU→RIG and RIG→BRU fan independently
+    // (they already bow to opposite sides, which keeps them distinguishable).
+    const groups = new Map<string, FlightRecord[]>();
+    for (const f of flyable) {
+      const key = `${f.departureAirport.toUpperCase()}>${f.arrivalAirport.toUpperCase()}`;
+      const list = groups.get(key);
+      if (list) list.push(f);
+      else groups.set(key, [f]);
+    }
+
+    const out: {
+      flight: FlightRecord;
+      paths: Segment[];
+      isPast: boolean;
+      matchesFilter: boolean;
+      /** 0 = the strand drawn at full weight; higher = a thinner repeat. */
+      fanIndex: number;
+      /** How many times this exact route has been flown. */
+      repeatCount: number;
+    }[] = [];
+
+    for (const group of groups.values()) {
+      // Most recent first, so the strand at full weight is the latest trip and
+      // older repeats trail off beside it.
+      const ordered = [...group].sort(
+        (a, b) => new Date(b.departureTime).getTime() - new Date(a.departureTime).getTime()
+      );
+      const first = ordered[0];
+      const fromInfo = getAirport(first.departureAirport)!;
+      const toInfo = getAirport(first.arrivalAirport)!;
+      const from: [number, number] = [fromInfo.lon, fromInfo.lat];
+      const to: [number, number] = [toInfo.lon, toInfo.lat];
+      const step = fanStep(from, to);
+
+      ordered.forEach((f, i) => {
+        out.push({
+          flight: f,
+          paths: buildRoutePaths(from, to, i * step),
+          isPast: new Date(f.departureTime).getTime() < now,
+          matchesFilter: routeFilter ? routeFilter(f) : true,
+          fanIndex: i,
+          repeatCount: ordered.length,
+        });
       });
+    }
+
+    return out;
   }, [flights, now, routeFilter]);
 
   const airports = useMemo(() => {
@@ -226,16 +289,38 @@ export function WorldMap({
   // Distinguishes a tap (select a flight) from a drag (pan the map).
   const movedRef = useRef(false);
 
-  /** Clamp so the map can never be dragged away from the viewport. */
+  /** The slice of the viewBox actually on screen. `preserveAspectRatio=slice`
+   * scales the viewBox to *cover* the box, so on a wide container the top and
+   * bottom of the map are cropped away — the clamp has to know about that, or
+   * high-latitude airports sit in the cropped band and can never be panned to. */
+  function visibleViewBox() {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect?.width || !rect.height) {
+      return { xMin: 0, xMax: MAP_WIDTH, yMin: 0, yMax: MAP_HEIGHT };
+    }
+    const k = Math.max(rect.width / MAP_WIDTH, rect.height / MAP_HEIGHT);
+    const offX = (rect.width - MAP_WIDTH * k) / 2;
+    const offY = (rect.height - MAP_HEIGHT * k) / 2;
+    return {
+      xMin: -offX / k,
+      xMax: (rect.width - offX) / k,
+      yMin: -offY / k,
+      yMax: (rect.height - offY) / k,
+    };
+  }
+
+  /** Clamp so the map always covers the visible window — but no further, so
+   * every part of the map stays reachable. */
   function clampView(v: { s: number; tx: number; ty: number }) {
     const s = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.s));
-    const minTx = -(s - 1) * MAP_WIDTH;
-    const minTy = -(s - 1) * MAP_HEIGHT;
-    return {
-      s,
-      tx: Math.min(0, Math.max(minTx, v.tx)),
-      ty: Math.min(0, Math.max(minTy, v.ty)),
-    };
+    const vb = visibleViewBox();
+    const txMin = vb.xMax - s * MAP_WIDTH;
+    const txMax = vb.xMin;
+    const tyMin = vb.yMax - s * MAP_HEIGHT;
+    const tyMax = vb.yMin;
+    const fit = (value: number, lo: number, hi: number) =>
+      lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, value));
+    return { s, tx: fit(v.tx, txMin, txMax), ty: fit(v.ty, tyMin, tyMax) };
   }
 
   /** Client coords → viewBox coords, accounting for preserveAspectRatio slice
@@ -371,28 +456,53 @@ export function WorldMap({
               const bTop = b.flight.id === highlightedId ? 1 : 0;
               return aTop - bTop;
             })
-            .map(({ flight, paths, isPast, matchesFilter }) =>
+            .map(({ flight, paths, isPast, matchesFilter, fanIndex, repeatCount }) =>
               paths.map((seg, i) => {
                 const opacity = routeOpacity(flight.id, matchesFilter);
                 const isActive = flight.id === highlightedId;
                 const color = isPast ? PAST_COLOR : UPCOMING_COLOR;
-                const ah = 8.5 * invScale; // arrowhead half-size, constant on screen
+                // The newest trip on a route keeps full weight; earlier repeats
+                // are drawn as thinner strands beside it, so a route flown many
+                // times reads as a bundle rather than a single line.
+                const isPrimary = fanIndex === 0;
+                const width = isActive ? 3 : isPrimary ? 2 : 1.1;
+                const strandOpacity = isActive || isPrimary ? 1 : 0.75;
+                const ah = (isPrimary ? 8.5 : 5.5) * invScale; // constant on screen
                 return (
                   <g key={`${flight.id}-${i}`} style={{ opacity }}>
                     <path
                       d={seg.d}
                       fill="none"
                       stroke={color}
-                      strokeWidth={isActive ? 3 : 2}
+                      strokeWidth={width}
                       strokeLinecap="round"
+                      strokeOpacity={strandOpacity}
                       vectorEffect="non-scaling-stroke"
                     />
                     {/* direction arrow at the segment midpoint (departure → arrival) */}
                     <path
                       d={`M ${-ah},${-ah} L ${ah},0 L ${-ah},${ah} Z`}
                       fill={color}
+                      fillOpacity={strandOpacity}
                       transform={`translate(${seg.mx} ${seg.my}) rotate(${seg.angle})`}
                     />
+                    {/* "×N" once per bundle, on the outermost strand */}
+                    {repeatCount > 1 && fanIndex === repeatCount - 1 && i === 0 && (
+                      <text
+                        x={seg.mx}
+                        y={seg.my - 6 * invScale}
+                        textAnchor="middle"
+                        fontSize={10 * invScale}
+                        fontWeight={700}
+                        fill={color}
+                        stroke={MAP_OCEAN}
+                        strokeWidth={2.5 * invScale}
+                        paintOrder="stroke"
+                        style={{ pointerEvents: "none" }}
+                      >
+                        ×{repeatCount}
+                      </text>
+                    )}
                     <path
                       d={seg.d}
                       fill="none"
@@ -413,6 +523,7 @@ export function WorldMap({
                           to: flight.arrivalAirport,
                           when: formatDateTime(flight.departureTime),
                           isPast,
+                          repeatCount,
                         })
                       }
                       onMouseLeave={() => setTooltip(null)}
@@ -519,7 +630,10 @@ export function WorldMap({
               <div className="text-ink">
                 {tooltip.content.airline} {tooltip.content.flightNumber} · {tooltip.content.when}
               </div>
-              <div className="text-muted">{tooltip.content.isPast ? "Past" : "Upcoming"}</div>
+              <div className="text-muted">
+                {tooltip.content.isPast ? "Past" : "Upcoming"}
+                {tooltip.content.repeatCount > 1 && ` · flown ${tooltip.content.repeatCount}× this way`}
+              </div>
             </>
           ) : (
             <>
