@@ -7,6 +7,16 @@ import { lookupAirline } from "./airlines";
  * the Google Sheet sync is wired back in, it can take over as the source
  * of truth without changing the shape of a FlightRecord. */
 const STORAGE_KEY = "flight-tracker:local-flights";
+/** Deletions have to be remembered, not just applied: without a tombstone a
+ * device holding a stale copy would re-upload a deleted flight on the next
+ * merge and resurrect it. */
+const TOMBSTONE_KEY = "flight-tracker:deleted-flights";
+
+export interface Tombstone {
+  id: string;
+  /** ISO time of the deletion — a later edit legitimately revives the id. */
+  at: string;
+}
 
 function readAll(): FlightRecord[] {
   try {
@@ -20,10 +30,47 @@ function readAll(): FlightRecord[] {
 
 function writeAll(flights: FlightRecord[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(flights));
+  notifyChanged();
+}
+
+export function getTombstones(): Tombstone[] {
+  try {
+    const raw = localStorage.getItem(TOMBSTONE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as Tombstone[];
+  } catch {
+    return [];
+  }
+}
+
+function writeTombstones(list: Tombstone[]): void {
+  localStorage.setItem(TOMBSTONE_KEY, JSON.stringify(list));
+}
+
+/** Local mutations notify listeners so the sync engine can queue a push
+ * without every call site having to remember to tell it. */
+type ChangeListener = () => void;
+const changeListeners = new Set<ChangeListener>();
+
+export function onFlightsChanged(fn: ChangeListener): () => void {
+  changeListeners.add(fn);
+  return () => changeListeners.delete(fn);
+}
+
+function notifyChanged(): void {
+  for (const fn of changeListeners) fn();
 }
 
 export function getFlights(): FlightRecord[] {
   return readAll();
+}
+
+/** Replaces the whole local set — used when a merge with Drive produces the
+ * authoritative list. Does not create tombstones. */
+export function replaceAllFlights(flights: FlightRecord[], tombstones: Tombstone[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(flights));
+  writeTombstones(tombstones);
+  notifyChanged();
 }
 
 export interface ManualFlightInput {
@@ -84,7 +131,11 @@ export function addFlight(input: ManualFlightInput): FlightRecord {
 }
 
 export function deleteFlight(id: string): void {
-  writeAll(readAll().filter((f) => f.id !== id));
+  const remaining = readAll().filter((f) => f.id !== id);
+  const tombstones = getTombstones().filter((t) => t.id !== id);
+  tombstones.push({ id, at: new Date().toISOString() });
+  writeTombstones(tombstones);
+  writeAll(remaining);
 }
 
 const SAMPLE_SOURCE = "sample";

@@ -5,6 +5,11 @@ import { PassportTab } from "./PassportTab";
 import { AddFlightForm } from "./AddFlightForm";
 import { ApiKeySettings } from "./ApiKeySettings";
 import { GlobeView } from "./GlobeView";
+import { GooglePanel } from "./GooglePanel";
+import { SyncStatusLight } from "./SyncStatusLight";
+import { getGoogleClientId } from "@/lib/localConfig";
+import { trySilentSignIn } from "@/lib/googleAuth";
+import { startSync } from "@/lib/syncEngine";
 import {
   getFlights,
   deleteFlight,
@@ -35,6 +40,7 @@ export function AppShell() {
   const [showApiSettings, setShowApiSettings] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showGlobe, setShowGlobe] = useState(false);
+  const [showGooglePanel, setShowGooglePanel] = useState(false);
 
   const mainRef = useRef<HTMLElement>(null);
 
@@ -44,6 +50,23 @@ export function AppShell() {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // If the user has already connected Google on this device, pick the session
+  // back up silently so their flights sync without them clicking anything.
+  // With no Client ID configured this is a no-op and the app stays local-only.
+  useEffect(() => {
+    const clientId = getGoogleClientId();
+    if (!clientId) return;
+    let cancelled = false;
+    void trySilentSignIn(clientId).then(async (token) => {
+      if (!token || cancelled) return;
+      await startSync();
+      if (!cancelled) load();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   // Reset the scroll container to the top whenever the tab changes — otherwise
@@ -94,6 +117,7 @@ export function AppShell() {
           </span>
         </span>
         <div className="flex items-center gap-2">
+          <SyncStatusLight />
           <button
             onClick={toggleUnits}
             className="rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-muted hover:bg-white/10"
@@ -111,16 +135,21 @@ export function AppShell() {
             </button>
             {showAccountMenu && (
               <div className="absolute right-0 top-10 z-30 w-56 rounded-xl border border-line bg-surface p-2 text-sm text-ink shadow-lg">
-                <div className="px-2 py-1.5 text-xs text-muted">Not signed in</div>
-                <div className="px-2 py-1.5 text-xs text-muted">
-                  iCloud &amp; Google sign-in are coming soon. For now, flights are stored in this browser.
-                </div>
+                <button
+                  onClick={() => {
+                    setShowGooglePanel(true);
+                    setShowAccountMenu(false);
+                  }}
+                  className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
+                >
+                  Google &amp; calendar sync…
+                </button>
                 <button
                   onClick={() => {
                     setShowApiSettings(true);
                     setShowAccountMenu(false);
                   }}
-                  className="mt-1 w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
+                  className="w-full rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
                 >
                   Flight lookup API…
                 </button>
@@ -223,6 +252,9 @@ export function AppShell() {
 
       {showAddForm && <AddFlightForm onAdded={load} onClose={() => setShowAddForm(false)} />}
       {showApiSettings && <ApiKeySettings onClose={() => setShowApiSettings(false)} />}
+      {showGooglePanel && (
+        <GooglePanel onClose={() => setShowGooglePanel(false)} onFlightsChanged={load} />
+      )}
       {showGlobe && <GlobeView flights={flights} onClose={() => setShowGlobe(false)} />}
     </div>
   );

@@ -15,6 +15,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Skylog" />
+
+    <!-- Google Identity Services. Loaded lazily and only used once the user
+         supplies an OAuth Client ID; with none set the app never calls it. -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
     <div id="root"></div>

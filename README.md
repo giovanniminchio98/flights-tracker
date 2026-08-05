@@ -72,19 +72,60 @@ Two things worth knowing before you do this:
   building it). If a real lookup fails to parse correctly, the exact error
   shown (or the raw response) is what's needed to fix it.
 
-## Google Calendar sync / iCloud `.ics` import: built, not wired in
+## Google Drive sync & calendar import (optional)
 
-An earlier phase of this project built full client-side Google Calendar
-auto-sync (via Google Identity Services, no client secret) writing to a
-Google Sheet, plus iCloud calendar import via `.ics` file upload, with
-cross-source dedup (primary key: flight number + departure date; secondary
-key: source + calendar event id). That code still exists —
-`src/lib/googleAuth.ts`, `googleCalendar.ts`, `googleSheets.ts`, `sync.ts`,
-`icsParser.ts`, and the `SetupScreen` / `LoginScreen` / `Settings` /
-`SyncButton` / `IcsImportPanel` components — but `App.tsx` doesn't currently
-render any of it; the app fell back to local-only storage to get a
-guaranteed-working baseline after a deploy issue. Reconnecting it is a
-follow-up, not a rebuild.
+Entirely opt-in. **With no Google Client ID configured the app never contacts
+Google at all** and behaves exactly as the local-only version described above
+— same manual entry, same localStorage.
+
+Once you connect an account, via **👤 → Google & calendar sync…**:
+
+- **Flights sync to Google Drive**, so signing in on another device restores
+  them. They live in Drive's `appDataFolder` — a hidden per-app folder that
+  doesn't show up in your Drive and that other apps can't read. The scope
+  requested is `drive.appdata`, *not* full Drive access, so Skylog is never
+  granted sight of your own files.
+- **"Scan Google Calendar"** reads your calendars (`calendar.readonly`,
+  never writes) and turns flight-looking events into entries.
+- **"Import iPhone / iCloud calendar (.ics)"** does the same from an Apple
+  Calendar export.
+- **Duplicates are skipped, not merged over.** Flights are keyed on flight
+  number + departure date, so re-running an import reports what it skipped
+  and leaves your hand-entered details untouched.
+- **Manual add still works unchanged**, signed in or not.
+- **Deletes propagate.** Deleting writes a tombstone that travels with the
+  data, so a device holding a stale copy can't resurrect a removed flight.
+
+### Sync status light
+
+A dot in the header shows the sync state — green *synced*, yellow *syncing*,
+red *offline / failed*. It's hidden entirely when sync is off. Local storage
+is always written first, so **nothing is ever lost to a bad connection**: a
+failed push is retried with exponential backoff and flushed as soon as the
+connection returns. Tap the red light to retry immediately.
+
+### Connecting an account
+
+You need a Google OAuth **Client ID** (public by design — there is no secret,
+which is what makes this work with no backend):
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → create/select a project.
+2. **APIs & Services → Library**: enable **Google Drive API** and **Google Calendar API**.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID → Web application**.
+4. Under **Authorised JavaScript origins** add where you host it
+   (`https://<user>.github.io`, and `http://localhost:5173` for local dev).
+5. Copy the Client ID into the app's **Google & calendar sync…** panel.
+
+While the project's consent screen is in *Testing*, add your own address
+under **Audience → Test users**.
+
+### Why iCloud is a file import, not a live sync
+
+Apple exposes no browser-reachable calendar API: CloudKit web services
+require a paid Apple Developer account, and CalDAV can't be called
+cross-origin from a static page (and would need an app-specific password
+stored somewhere). Exporting an `.ics` is the one route that works from a
+static site with no backend and no credentials to keep.
 
 ## Stack
 
