@@ -8,8 +8,17 @@
  * re-authorizes, which for a personal dashboard opened occasionally is a
  * reasonable trade-off for not needing any backend at all. */
 
-export const GOOGLE_SCOPES =
-  "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/spreadsheets";
+/** Least-privilege set:
+ *  - drive.appdata  → a hidden folder only this app can see. Notably NOT
+ *    `drive`/`drive.file`, so signing in gives no visibility of the user's
+ *    own Drive contents.
+ *  - calendar.readonly → to find flights; never writes to the calendar.
+ *  - userinfo.email → so the UI can show which account is signed in. */
+export const GOOGLE_SCOPES = [
+  "https://www.googleapis.com/auth/drive.appdata",
+  "https://www.googleapis.com/auth/calendar.readonly",
+  "https://www.googleapis.com/auth/userinfo.email",
+].join(" ");
 
 interface GisTokenResponse {
   access_token: string;
@@ -122,6 +131,59 @@ export async function signInWithGoogle(clientId: string): Promise<string> {
       reject(err instanceof Error ? err : new Error(String(err)));
     }
   });
+}
+
+/** Re-authorizes without showing the account chooser. Works once the user has
+ * already granted consent, so a returning visitor gets a usable token without
+ * clicking anything; rejects (rather than prompting) when consent is needed. */
+export async function trySilentSignIn(clientId: string): Promise<string | null> {
+  const cached = getValidAccessToken();
+  if (cached) return cached;
+
+  await waitForGis();
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (value: string | null) => {
+      if (!settled) {
+        settled = true;
+        resolve(value);
+      }
+    };
+    try {
+      const client = window.google!.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: GOOGLE_SCOPES,
+        callback: (response) => {
+          if (response.error || !response.access_token) return done(null);
+          writeStoredToken({
+            accessToken: response.access_token,
+            expiresAt: Date.now() + response.expires_in * 1000,
+          });
+          done(response.access_token);
+        },
+        error_callback: () => done(null),
+      });
+      client.requestAccessToken({ prompt: "" });
+      // GIS silently no-ops if consent is required; don't hang forever.
+      setTimeout(() => done(null), 4000);
+    } catch {
+      done(null);
+    }
+  });
+}
+
+/** The signed-in account's email, for display only. */
+export async function getUserEmail(accessToken: string): Promise<string | null> {
+  try {
+    const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { email?: string };
+    return data.email ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export function signOutGoogle(): void {
