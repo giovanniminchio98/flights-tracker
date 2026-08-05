@@ -25,8 +25,10 @@ function UpcomingRow({
   onSelect: () => void;
   onDelete: () => void;
 }) {
-  const depCity = getAirport(flight.departureAirport)?.city ?? flight.departureAirport;
-  const arrCity = getAirport(flight.arrivalAirport)?.city ?? flight.arrivalAirport;
+  const depAir = getAirport(flight.departureAirport);
+  const arrAir = getAirport(flight.arrivalAirport);
+  const depCity = depAir?.city ?? flight.departureAirport;
+  const arrCity = arrAir?.city ?? flight.arrivalAirport;
   const cd = getCountdown(flight.departureTime, flight.arrivalTime, now);
 
   return (
@@ -47,10 +49,12 @@ function UpcomingRow({
             {depCity} <span className="text-muted">→</span> {arrCity}
           </div>
           <div className="mt-1 flex gap-4 text-xs text-muted">
-            <span>↗ {flight.departureAirport} {formatTimeShort(flight.departureTime)}</span>
+            <span>↗ {flight.departureAirport} {formatTimeShort(flight.departureTime, depAir?.tz)}</span>
             <span>
-              ↘ {flight.arrivalAirport} {formatTimeShort(flight.arrivalTime)}
-              {isNextDay(flight.departureTime, flight.arrivalTime) && <sup className="ml-0.5">+1</sup>}
+              ↘ {flight.arrivalAirport} {formatTimeShort(flight.arrivalTime, arrAir?.tz)}
+              {isNextDay(flight.departureTime, flight.arrivalTime, depAir?.tz, arrAir?.tz) && (
+                <sup className="ml-0.5">+1</sup>
+              )}
             </span>
           </div>
         </div>

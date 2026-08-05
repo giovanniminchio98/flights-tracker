@@ -32,6 +32,11 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
   const [historicalTimes, setHistoricalTimes] = useState<HistoricalTimes | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The date field is controlled and only acted on when the user explicitly
+  // confirms. A native date picker fires `change` the moment its day/month/
+  // year segments are all filled, so committing straight from onChange saved
+  // the flight before the user had actually chosen anything.
+  const [pickedDate, setPickedDate] = useState("");
 
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
@@ -222,12 +227,22 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
 
             <label className="mt-2 block text-sm">
               Or pick a date
-              <input
-                type="date"
-                disabled={submitting}
-                onChange={(e) => e.target.value && handleQuickDate(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm disabled:opacity-50"
-              />
+              <div className="mt-1 flex gap-2">
+                <input
+                  type="date"
+                  value={pickedDate}
+                  disabled={submitting}
+                  onChange={(e) => setPickedDate(e.target.value)}
+                  className="w-full rounded-lg border border-line px-3 py-2 text-sm disabled:opacity-50"
+                />
+                <button
+                  disabled={submitting || !pickedDate}
+                  onClick={() => handleQuickDate(pickedDate)}
+                  className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-soft disabled:opacity-50"
+                >
+                  {submitting ? "Adding…" : "Add"}
+                </button>
+              </div>
             </label>
 
             {error && <div className="mt-3 text-sm text-red-400">{error}</div>}
@@ -333,12 +348,22 @@ export function AddFlightForm({ onAdded, onClose }: { onAdded: () => void; onClo
 
                 <label className="mt-2 block text-sm">
                   Or pick a date
-                  <input
-                    type="date"
-                    disabled={lookupLoading}
-                    onChange={(e) => e.target.value && handleLookup(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-line px-3 py-2 text-sm disabled:opacity-50"
-                  />
+                  <div className="mt-1 flex gap-2">
+                    <input
+                      type="date"
+                      value={pickedDate}
+                      disabled={lookupLoading}
+                      onChange={(e) => setPickedDate(e.target.value)}
+                      className="w-full rounded-lg border border-line px-3 py-2 text-sm disabled:opacity-50"
+                    />
+                    <button
+                      disabled={lookupLoading || !pickedDate}
+                      onClick={() => handleLookup(pickedDate)}
+                      className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-soft disabled:opacity-50"
+                    >
+                      {lookupLoading ? "…" : "Look up"}
+                    </button>
+                  </div>
                 </label>
 
                 {lookupError && <div className="mt-3 text-sm text-red-400">{lookupError}</div>}

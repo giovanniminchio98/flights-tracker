@@ -3,11 +3,17 @@ import { getAirport } from "./airports";
 /** Arrival-airport weather via Open-Meteo — free, no API key, CORS-enabled,
  * so it works from a static site with nothing for the user to configure.
  *
- * Forecasts only reach ~7 days ahead (the app's chosen window); for a past
- * flight we read the historical archive instead. Anything further out than
+ * A single forecast call covers ~92 days back to ~16 days ahead; older
+ * flights fall back to the historical archive. Anything further ahead than
  * the window returns null and the UI simply omits the weather line. */
 
-const FORECAST_WINDOW_DAYS = 7;
+// Open-Meteo's forecast endpoint covers a generous window in a *single*
+// reliable call: up to 92 days into the past (measurements/reanalysis, no
+// archive lag) and up to 16 days ahead. We use it for everything inside that
+// window — which is where essentially every logged flight falls — and only
+// reach for the separate historical archive for flights older than that.
+const FORECAST_PAST_DAYS = 92;
+const FORECAST_AHEAD_DAYS = 16;
 
 export interface ArrivalWeather {
   tempC: number;
@@ -36,12 +42,13 @@ function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-function pickHourIndex(times: string[], targetIso: string): number {
-  const target = new Date(targetIso).getTime();
+/** Index of the hour nearest the target. `times` are unix seconds (UTC), so
+ * the comparison is offset-free — no ambiguity from the airport's timezone. */
+function pickHourIndex(times: number[], targetMs: number): number {
   let best = 0;
   let bestDiff = Infinity;
   for (let i = 0; i < times.length; i++) {
-    const diff = Math.abs(new Date(times[i]).getTime() - target);
+    const diff = Math.abs(times[i] * 1000 - targetMs);
     if (diff < bestDiff) {
       bestDiff = diff;
       best = i;
@@ -64,39 +71,45 @@ export async function getArrivalWeather(
   const arrival = new Date(arrivalIso);
   if (Number.isNaN(arrival.getTime())) return null;
 
+  const arrivalMs = arrival.getTime();
   const now = Date.now();
-  const daysAhead = (arrival.getTime() - now) / 86400000;
-  const isPast = arrival.getTime() < now;
+  const daysAhead = (arrivalMs - now) / 86400000;
+  const isPast = arrivalMs < now;
 
-  // Too far in the future to have any signal.
-  if (daysAhead > FORECAST_WINDOW_DAYS) return null;
+  // Too far in the future to have any forecast signal.
+  if (daysAhead > FORECAST_AHEAD_DAYS) return null;
 
   const { lat, lon } = airport;
-  const dateStr = isoDate(arrival);
 
   try {
     let url: string;
-    if (isPast) {
-      // Historical archive (has a few days' lag but fine for past trips).
+    if (daysAhead < -FORECAST_PAST_DAYS) {
+      // Older than the forecast endpoint reaches back — use the historical
+      // archive (single day around arrival).
+      const dateStr = isoDate(arrival);
       url =
         `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}` +
-        `&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,weather_code&timezone=auto`;
+        `&start_date=${dateStr}&end_date=${dateStr}&hourly=temperature_2m,weather_code&timeformat=unixtime`;
     } else {
+      // One reliable call covering recent past → near future. Request just
+      // enough days on each side of the arrival to bracket it.
+      const past = isPast ? Math.min(FORECAST_PAST_DAYS, Math.ceil(-daysAhead) + 1) : 1;
+      const ahead = daysAhead > 0 ? Math.min(FORECAST_AHEAD_DAYS, Math.ceil(daysAhead) + 1) : 1;
       url =
         `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-        `&hourly=temperature_2m,weather_code&forecast_days=${FORECAST_WINDOW_DAYS + 1}&timezone=auto`;
+        `&hourly=temperature_2m,weather_code&past_days=${past}&forecast_days=${ahead}&timeformat=unixtime`;
     }
 
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
 
-    const times: string[] = data?.hourly?.time ?? [];
+    const times: number[] = data?.hourly?.time ?? [];
     const temps: number[] = data?.hourly?.temperature_2m ?? [];
     const codes: number[] = data?.hourly?.weather_code ?? [];
     if (times.length === 0 || temps.length === 0) return null;
 
-    const idx = pickHourIndex(times, arrivalIso);
+    const idx = pickHourIndex(times, arrivalMs);
     const tempC = temps[idx];
     const code = codes[idx] ?? 0;
     if (tempC == null) return null;

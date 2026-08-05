@@ -49,28 +49,57 @@ export function formatDateTime(iso: string): string {
   });
 }
 
-/** "11:50 AM" — local time of day only. */
-export function formatTimeShort(iso: string): string {
+/** "11:50 AM" — time of day. Pass an IANA `timeZone` (e.g. the destination
+ * airport's) to render the local clock time *there* rather than in the
+ * viewer's own timezone; omit it for viewer-local time. */
+export function formatTimeShort(iso: string, timeZone?: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone });
 }
 
-/** "Fri, 31 Jul" — weekday + day + month, no time. */
-export function formatDateShort(iso: string): string {
+/** Short timezone label for a moment, e.g. "GMT+2" / "PDT". Empty if the
+ * zone is unknown. Used to make airport-local times unambiguous. */
+export function tzAbbrev(iso: string, timeZone?: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  try {
+    const parts = new Intl.DateTimeFormat(undefined, { timeZone, timeZoneName: "short" }).formatToParts(d);
+    return parts.find((p) => p.type === "timeZoneName")?.value ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** The viewer's own IANA timezone (their "star place"), e.g. "Europe/Rome". */
+export function localTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/** "Fri, 31 Jul" — weekday + day + month, no time. Optionally in a given
+ * timezone so the calendar date matches the airport-local one. */
+export function formatDateShort(iso: string, timeZone?: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", timeZone });
 }
 
-/** True when arrival falls on a later calendar day than departure (shows +1). */
-export function isNextDay(departureIso: string, arrivalIso: string): boolean {
+/** True when arrival falls on a later calendar day than departure (shows +1).
+ * When timezones are supplied the comparison is done in each airport's local
+ * date, so an overnight flight is flagged by where you land, not by UTC. */
+export function isNextDay(
+  departureIso: string,
+  arrivalIso: string,
+  departureTimeZone?: string,
+  arrivalTimeZone?: string
+): boolean {
   const a = new Date(departureIso);
   const b = new Date(arrivalIso);
   if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false;
-  return (
-    a.getFullYear() !== b.getFullYear() || a.getMonth() !== b.getMonth() || a.getDate() !== b.getDate()
-  );
+  // en-CA gives a sortable YYYY-MM-DD, so a plain string compare works.
+  const dayA = a.toLocaleDateString("en-CA", { timeZone: departureTimeZone });
+  const dayB = b.toLocaleDateString("en-CA", { timeZone: arrivalTimeZone });
+  return dayB > dayA;
 }
 
 /** Formats an ISO timestamp for a <input type="datetime-local"> value. */
