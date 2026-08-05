@@ -69,6 +69,8 @@ export interface FlightStats {
   shortestFlight: RouteRecord | null;
   mostFrequentRoute: RouteTally | null;
   mostFlownAirline: AirlineTally | null;
+  /** Airlines by flight count, most-flown first (max 6). */
+  topAirlines: AirlineTally[];
   mostVisitedAirport: AirportTally | null;
 
   lapsAroundEarth: number;
@@ -202,10 +204,11 @@ export function computeStats(flights: FlightRecord[]): FlightStats {
 
   const mostFrequentRoute = Array.from(routeCounts.values()).sort((a, b) => b.count - a.count)[0] ?? null;
 
-  const mostFlownAirlineEntry = Array.from(airlines.entries()).sort((a, b) => b[1] - a[1])[0];
-  const mostFlownAirline = mostFlownAirlineEntry
-    ? { airline: mostFlownAirlineEntry[0], count: mostFlownAirlineEntry[1] }
-    : null;
+  const topAirlines = Array.from(airlines.entries())
+    .map(([airline, count]) => ({ airline, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
+  const mostFlownAirline = topAirlines[0] ?? null;
 
   const flightsByYear = Array.from(yearCounts.entries())
     .map(([year, count]) => ({ label: String(year), count }))
@@ -243,6 +246,7 @@ export function computeStats(flights: FlightRecord[]): FlightStats {
     shortestFlight,
     mostFrequentRoute,
     mostFlownAirline,
+    topAirlines,
     mostVisitedAirport: mostVisitedAirports[0] ?? null,
 
     lapsAroundEarth: Math.round((kmAllTime / EARTH_CIRCUMFERENCE_KM) * 100) / 100,

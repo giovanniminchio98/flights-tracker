@@ -182,6 +182,13 @@ function routeFilterFor(a: string, b: string): MapFilter {
   };
 }
 
+function airlineFilter(airline: string): MapFilter {
+  return {
+    label: `Flights on ${airline}`,
+    predicate: (f: FlightRecord) => f.airline === airline,
+  };
+}
+
 function yearFilter(year: string): MapFilter {
   return {
     label: `Flights in ${year}`,
@@ -278,13 +285,9 @@ export function PassportTab({
               <Stat tone="cyan" label={`Distance all-time (${u})`} value={formatDistanceValue(stats.kmAllTime, units)} />
             </>
           ) : (
-            <>
-              <Stat tone="cyan" label={`Distance in ${year} (${u})`} value={formatDistanceValue(stats.kmAllTime, units)} />
-              <Stat
-                label="Longest single flight"
-                value={stats.longestDurationMinutes ? formatDuration(stats.longestDurationMinutes) : "—"}
-              />
-            </>
+            // Scoped to one year, "this year vs all-time" collapses to a single
+            // figure — showing it twice would just repeat the same number.
+            <Stat tone="cyan" label={`Distance in ${year} (${u})`} value={formatDistanceValue(stats.kmAllTime, units)} />
           )}
           <Stat tone="yellow" label="Time in the air" value={formatDuration(stats.totalFlightMinutes)} />
           <Stat tone="yellow" label="Avg flight" value={stats.avgFlightMinutes ? formatDuration(stats.avgFlightMinutes) : "—"} />
@@ -316,11 +319,11 @@ export function PassportTab({
                 : `${Math.round(stats.lapsAroundEarth * 100)}% of the way around the equator (${EQUATOR_KM.toLocaleString()} km).`
             }
           />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat tone="red" label="Est. CO₂" value={`${stats.co2Kg.toLocaleString()} kg`} sub="economy est." />
+          {/* Laps and total distance are already shown by the meters above, so
+           * this row only carries what they don't: the emissions figures. */}
+          <div className="grid grid-cols-2 gap-3">
+            <Stat tone="red" label="Est. CO₂" value={`${stats.co2Kg.toLocaleString()} kg`} sub="per traveller, economy est." />
             <Stat tone="green" label="Trees to offset" value={`${Math.max(0, Math.round(stats.co2Kg / 21)).toLocaleString()} 🌳`} sub="~1yr each" />
-            <Stat tone="yellow" label="Longest flight" value={stats.longestDurationMinutes ? formatDuration(stats.longestDurationMinutes) : "—"} />
-            <Stat tone="cyan" label="Times around Earth" value={stats.lapsAroundEarth} sub="🌍" />
           </div>
         </div>
       </div>
@@ -346,7 +349,9 @@ export function PassportTab({
             <ClickableRecord
               title="Longest flight"
               value={`${stats.longestFlight.departureAirport} → ${stats.longestFlight.arrivalAirport}`}
-              sub={`${formatDistanceValue(stats.longestFlight.km, units)} ${u}`}
+              sub={`${formatDistanceValue(stats.longestFlight.km, units)} ${u}${
+                stats.longestDurationMinutes ? ` · ${formatDuration(stats.longestDurationMinutes)}` : ""
+              }`}
               active={activeFilterLabel === `${stats.longestFlight.departureAirport} ↔ ${stats.longestFlight.arrivalAirport}`}
               onClick={() => toggle(routeFilterFor(stats.longestFlight!.departureAirport, stats.longestFlight!.arrivalAirport))}
             />
@@ -385,7 +390,8 @@ export function PassportTab({
               title="Most flown airline"
               value={stats.mostFlownAirline.airline}
               sub={`${stats.mostFlownAirline.count} flights`}
-              active={false}
+              active={activeFilterLabel === `Flights on ${stats.mostFlownAirline.airline}`}
+              onClick={() => toggle(airlineFilter(stats.mostFlownAirline!.airline))}
             />
           )}
         </div>
@@ -404,6 +410,27 @@ export function PassportTab({
                 }`}
               >
                 {a.code} <span className="opacity-60">×{a.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {stats.topAirlines.length > 0 && (
+        <div>
+          <SectionLabel>Top airlines — tap to filter the map</SectionLabel>
+          <div className="flex flex-wrap gap-2">
+            {stats.topAirlines.map((a) => (
+              <button
+                key={a.airline}
+                onClick={() => toggle(airlineFilter(a.airline))}
+                className={`rounded-full px-3 py-1 text-sm transition ${
+                  activeFilterLabel === `Flights on ${a.airline}`
+                    ? "bg-accent text-white"
+                    : "bg-white/10 text-ink hover:bg-white/20"
+                }`}
+              >
+                {a.airline} <span className="opacity-60">×{a.count}</span>
               </button>
             ))}
           </div>
